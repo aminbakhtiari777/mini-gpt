@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fa" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -15,15 +15,15 @@
   <main class="shell">
     <header>
       <div class="orb" aria-hidden="true"></div>
-      <div><h1>Mini‑GPT</h1><p id="status">آماده • حافظه محلی</p></div>
-      <label class="switch"><input id="web-toggle" type="checkbox" checked><span>وب</span></label>
+      <div><h1>Mini‑GPT</h1><p id="status">Ready • Local memory</p></div>
+      <label class="switch"><input id="web-toggle" type="checkbox" checked><span>Web</span></label>
     </header>
     <section id="messages" class="messages" aria-live="polite">
-      <article class="message assistant">سلام امین. آنلاین باشم جست‌وجو می‌کنم؛ آفلاین باشم از دانش و حافظه محلی جواب می‌دهم.</article>
+      <article class="message assistant" dir="auto">Hello, Amin. I can research the web when online and use local knowledge when offline.</article>
     </section>
     <form id="chat-form">
-      <textarea id="prompt" rows="1" placeholder="پیامت را بنویس…" required></textarea>
-      <button type="submit" aria-label="ارسال">↑</button>
+      <textarea id="prompt" rows="1" dir="auto" placeholder="Type a message…" required></textarea>
+      <button type="submit" aria-label="Send message">↑</button>
     </form>
   </main>
   <script src="/static/app.js" defer></script>
