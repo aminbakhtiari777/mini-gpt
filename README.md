@@ -33,6 +33,8 @@ pip install -r requirements.txt
 python scripts/run.py
 ```
 
+پس از نصب اولیه، در دفعات بعد می‌توانی فایل `start_windows.bat` را با دوبار کلیک اجرا کنی.
+
 نصب کامل شامل TensorFlow و مدل محلی است. برای تست رابط بدون TensorFlow می‌توانی نسخه سبک را نصب کنی؛ در این حالت پاسخ جایگزین و حافظه فعال‌اند ولی Checkpoint اجرا نمی‌شود:
 
 ```powershell
