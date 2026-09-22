@@ -5,7 +5,7 @@ import uuid
 
 from .config import AgentConfig
 from .memory import MemoryStore
-from .model_adapter import DeterministicFallbackEngine, LanguageEngine, LocalMiniGPTEngine
+from .model_adapter import DeterministicFallbackEngine, LanguageEngine, LocalMiniGPTEngine, OllamaEngine
 from .personality import apply_personality
 from .search import CompositeSearchProvider, DuckDuckGoSearchProvider, SearchProvider, WikipediaSearchProvider
 from .text import best_excerpt, lexical_score, looks_persian
@@ -29,7 +29,17 @@ class MiniGPTAgent:
     ):
         self.config = config or AgentConfig()
         self.memory = memory or MemoryStore(self.config.database_path)
-        primary_engine = engine or LocalMiniGPTEngine()
+        primary_engine = engine
+        if primary_engine is None and self.config.ollama_enabled:
+            ollama = OllamaEngine(
+                self.config.ollama_url,
+                self.config.ollama_model,
+                self.config.ollama_timeout,
+                self.config.ollama_context_length,
+            )
+            if ollama.available:
+                primary_engine = ollama
+        primary_engine = primary_engine or LocalMiniGPTEngine()
         if isinstance(primary_engine, LocalMiniGPTEngine) and not primary_engine.available:
             primary_engine = DeterministicFallbackEngine()
         self.engine = primary_engine
@@ -221,6 +231,7 @@ class MiniGPTAgent:
         if clarification:
             return AgentAnswer(clarification, "clarification", 1.0, needs_clarification=True)
 
+        history = self.memory.recent_messages(session_id, self.config.max_context_messages)
         self.memory.add_message(session_id, "user", message)
         learned = False
         if self._requests_memory(message) or self.config.remember_by_default:
@@ -236,7 +247,7 @@ class MiniGPTAgent:
             return result
 
         context, context_score = self._cached_context(message)
-        local_answer, local_confidence = self.engine.answer(message, context)
+        local_answer, local_confidence = self.engine.answer(message, context, history)
         if context and self._is_question(message):
             cached_excerpt, cached_score = best_excerpt(message, context, sentence_limit=3)
             if cached_excerpt and cached_score >= 0.18:
@@ -256,9 +267,25 @@ class MiniGPTAgent:
             except Exception:
                 evidence, rounds, web_confidence = [], 0, 0.0
             if evidence:
-                answer = self._evidence_answer(message, evidence)
+                evidence_context = "\n\n".join(
+                    f"[{index}] {item.document.title}\n{item.excerpt}\nURL: {item.document.url}"
+                    for index, item in enumerate(evidence[:3], start=1)
+                )
+                synthesized, synthesis_confidence = self.engine.answer(
+                    message,
+                    "Answer using only the sources below. Cite claims with [1], [2], or [3].\n\n" + evidence_context,
+                    history,
+                )
+                answer = synthesized if synthesis_confidence >= 0.35 else self._evidence_answer(message, evidence)
                 sources = [item.document for item in evidence[:3]]
-                result = AgentAnswer(answer, "web", web_confidence, sources, rounds, learned=learned)
+                result = AgentAnswer(
+                    answer,
+                    "web",
+                    max(web_confidence, synthesis_confidence),
+                    sources,
+                    rounds,
+                    learned=learned,
+                )
             else:
                 safe_answer = local_answer if local_confidence >= 0.35 or context else self._insufficient_answer(message)
                 result = AgentAnswer(

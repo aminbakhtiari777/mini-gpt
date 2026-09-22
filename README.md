@@ -8,6 +8,8 @@ A local-first conversational AI project that combines a compact Transformer chec
 ## Key capabilities
 
 - Local text generation using the bundled TensorFlow Mini-GPT checkpoint
+- Natural multilingual chat through an optional local Ollama model
+- Multi-turn conversation context for Ollama sessions
 - Automatic routing between local knowledge, cached knowledge, and live web research
 - Bounded multi-round retrieval with explicit confidence and stopping criteria
 - Wikipedia and general web search providers with graceful network failure handling
@@ -116,6 +118,44 @@ python scripts\run.py
 
 This mode is useful for UI development and low-resource environments. It does not provide neural text generation.
 
+## Recommended Ollama setup
+
+Ollama provides the primary conversational engine when it is installed and the configured model is available. The educational TensorFlow checkpoint remains an automatic fallback.
+
+1. Install Ollama for Windows from [ollama.com/download](https://ollama.com/download).
+2. Open a new PowerShell window.
+3. Download the recommended multilingual model:
+
+```powershell
+ollama pull qwen3:4b
+```
+
+4. Verify the model independently:
+
+```powershell
+ollama run qwen3:4b
+```
+
+5. Enter `/bye` to exit the model session, then start Mini-GPT:
+
+```powershell
+cd C:\Users\metaking\mini-gpt
+python scripts\run.py
+```
+
+The application connects to Ollama at `http://127.0.0.1:11434` by default. Ollama does not need to be exposed to the iPhone or iPad: the FastAPI server communicates with it locally, while Apple devices continue to use the existing Mini-GPT URL over Tailscale.
+
+Check the active engine at [http://localhost:8000/api/health](http://localhost:8000/api/health). A successful Ollama configuration reports:
+
+```json
+{
+  "status": "ok",
+  "agent_ready": true,
+  "engine": "OllamaEngine",
+  "model": "qwen3:4b"
+}
+```
+
 ## Access from iPhone or iPad
 
 The Apple device and the Windows computer must be connected to the same trusted Wi-Fi network.
@@ -161,6 +201,11 @@ The application is configured through environment variables.
 | `MINIGPT_REQUEST_TIMEOUT` | `5` | Network timeout in seconds |
 | `MINIGPT_OFFLINE` | `0` | Set to `1` to disable web research globally |
 | `MINIGPT_REMEMBER` | `0` | Set to `1` to persist every user message as memory |
+| `MINIGPT_OLLAMA_ENABLED` | `1` | Use Ollama when its server and configured model are available |
+| `MINIGPT_OLLAMA_URL` | `http://127.0.0.1:11434` | Local Ollama server URL |
+| `MINIGPT_OLLAMA_MODEL` | `qwen3:4b` | Ollama chat model name |
+| `MINIGPT_OLLAMA_TIMEOUT` | `120` | Maximum generation time in seconds |
+| `MINIGPT_OLLAMA_CONTEXT` | `4096` | Ollama context window used by Mini-GPT |
 
 Example PowerShell configuration:
 

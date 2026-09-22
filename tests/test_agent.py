@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from agent.config import AgentConfig
 from agent.memory import MemoryStore
+from agent.model_adapter import OllamaEngine
 from agent.orchestrator import MiniGPTAgent
 from agent.search import CompositeSearchProvider
 from agent.text import best_excerpt, lexical_score, normalize_text
@@ -14,7 +16,7 @@ class FakeEngine:
     def __init__(self, answer="local answer", confidence=0.2):
         self.response = answer, confidence
 
-    def answer(self, prompt: str, context: str = ""):
+    def answer(self, prompt: str, context: str = "", history=None):
         return self.response
 
 
@@ -224,6 +226,64 @@ def test_low_confidence_statement_never_exposes_model_gibberish(tmp_path):
     assert result.mode == "offline"
     assert "کامل متوجه نشدم" in result.answer
     assert "day day" not in result.answer
+
+
+def test_ollama_engine_uses_history_and_context():
+    requests = []
+
+    class Response:
+        def __init__(self, value):
+            self.value = value
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def read(self):
+            return json.dumps(self.value).encode("utf-8")
+
+    def opener(request, timeout):
+        requests.append(request)
+        if request.full_url.endswith("/api/tags"):
+            return Response({"models": [{"name": "qwen3:4b"}]})
+        payload = json.loads(request.data.decode("utf-8"))
+        assert payload["stream"] is False
+        assert payload["messages"][0]["role"] == "system"
+        assert "saved fact" in payload["messages"][0]["content"]
+        assert payload["messages"][-2] == {"role": "assistant", "content": "previous reply"}
+        assert payload["messages"][-1] == {"role": "user", "content": "new question"}
+        return Response({"message": {"content": "natural answer"}})
+
+    engine = OllamaEngine("http://127.0.0.1:11434", "qwen3:4b", opener=opener)
+    answer, confidence = engine.answer(
+        "new question",
+        "saved fact",
+        [{"role": "assistant", "content": "previous reply"}],
+    )
+
+    assert engine.available
+    assert answer == "natural answer"
+    assert confidence == 0.5
+    assert len(requests) == 2
+
+
+def test_ollama_engine_reports_missing_model():
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def read(self):
+            return b'{"models": []}'
+
+    engine = OllamaEngine("http://127.0.0.1:11434", "qwen3:4b", opener=lambda *_args, **_kwargs: Response())
+
+    assert not engine.available
+    assert "not installed" in engine.error
 
 
 def test_lexical_score_ignores_generic_question_words():

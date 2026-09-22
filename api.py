@@ -52,7 +52,15 @@ def service_worker():
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "agent_ready": agent is not None}
+    if agent is None:
+        return {"status": "starting", "agent_ready": False}
+    engine = agent.engine
+    return {
+        "status": "ok",
+        "agent_ready": True,
+        "engine": type(engine).__name__,
+        "model": getattr(engine, "model_name", None),
+    }
 
 
 @app.post("/api/chat")

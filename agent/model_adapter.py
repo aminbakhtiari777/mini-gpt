@@ -1,10 +1,128 @@
 from __future__ import annotations
 
+import json
 from typing import Protocol
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
+
+
+SYSTEM_PROMPT = """You are Nava, Amin's private local AI assistant.
+Reply in the same language as the user, including natural Persian when the user writes Persian.
+Be warm, direct, concise, and useful. Ask one clear follow-up question when essential information is missing.
+Use supplied context only when it is relevant. Never invent facts, memories, sources, or personal experiences.
+Do not expose private chain-of-thought. Give only the final answer and a brief explanation when useful.
+You are software with an empathetic conversational style, not a conscious person."""
 
 
 class LanguageEngine(Protocol):
-    def answer(self, prompt: str, context: str = "") -> tuple[str, float]: ...
+    def answer(
+        self,
+        prompt: str,
+        context: str = "",
+        history: list[dict] | None = None,
+    ) -> tuple[str, float]: ...
+
+
+class OllamaEngine:
+    """Chat engine backed by Ollama's local HTTP API."""
+
+    def __init__(
+        self,
+        base_url: str,
+        model: str,
+        timeout: float = 120,
+        context_length: int = 4096,
+        opener=None,
+    ):
+        self.base_url = base_url.rstrip("/")
+        self.model_name = model
+        self.timeout = timeout
+        self.context_length = context_length
+        self._opener = opener or urlopen
+        self._available: bool | None = None
+        self._error: str | None = None
+
+    def _request(self, path: str, payload: dict | None = None, timeout: float | None = None) -> dict:
+        data = None if payload is None else json.dumps(payload).encode("utf-8")
+        request = Request(
+            f"{self.base_url}{path}",
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="GET" if data is None else "POST",
+        )
+        with self._opener(request, timeout=timeout or self.timeout) as response:
+            return json.loads(response.read().decode("utf-8"))
+
+    def _check_available(self) -> bool:
+        if self._available is not None:
+            return self._available
+        try:
+            response = self._request("/api/tags", timeout=min(2.0, self.timeout))
+            names = {
+                model.get("name") or model.get("model")
+                for model in response.get("models", [])
+            }
+            self._available = self.model_name in names
+            if not self._available:
+                self._error = f"Ollama is running, but model '{self.model_name}' is not installed."
+        except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
+            self._available = False
+            self._error = f"Ollama is unavailable: {type(exc).__name__}: {exc}"
+        return self._available
+
+    @property
+    def available(self) -> bool:
+        return self._check_available()
+
+    @property
+    def error(self) -> str | None:
+        self._check_available()
+        return self._error
+
+    def answer(
+        self,
+        prompt: str,
+        context: str = "",
+        history: list[dict] | None = None,
+    ) -> tuple[str, float]:
+        if not self.available:
+            return "The local Ollama model is unavailable.", 0.05
+
+        system = SYSTEM_PROMPT
+        if context:
+            system += f"\n\nRelevant local or researched context:\n{context[:6000]}"
+        messages = [{"role": "system", "content": system}]
+        for item in (history or [])[-12:]:
+            role = item.get("role")
+            content = str(item.get("content", "")).strip()
+            if role in {"user", "assistant"} and content:
+                messages.append({"role": role, "content": content[:3000]})
+        messages.append({"role": "user", "content": prompt})
+
+        payload = {
+            "model": self.model_name,
+            "messages": messages,
+            "stream": False,
+            "keep_alive": "10m",
+            "options": {
+                "temperature": 0.55,
+                "top_p": 0.9,
+                "repeat_penalty": 1.1,
+                "num_ctx": self.context_length,
+                "num_predict": 600,
+            },
+        }
+        try:
+            response = self._request("/api/chat", payload)
+            content = str(response.get("message", {}).get("content", "")).strip()
+        except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
+            self._error = f"Ollama request failed: {type(exc).__name__}: {exc}"
+            return "The local Ollama model could not answer this request.", 0.05
+        if not content:
+            return "I could not produce a useful answer yet.", 0.1
+        # The model is capable of fluent conversation, but factual confidence
+        # remains conservative so online questions can still use retrieval.
+        return content, 0.5
 
 
 class LocalMiniGPTEngine:
@@ -32,7 +150,12 @@ class LocalMiniGPTEngine:
         self._load()
         return self._error
 
-    def answer(self, prompt: str, context: str = "") -> tuple[str, float]:
+    def answer(
+        self,
+        prompt: str,
+        context: str = "",
+        history: list[dict] | None = None,
+    ) -> tuple[str, float]:
         normalized = prompt.strip().casefold().rstrip(".!؟?")
         greetings = {
             "hello": "Hello! I'm Mini-GPT. How can I help you?",
@@ -65,7 +188,12 @@ class LocalMiniGPTEngine:
 class DeterministicFallbackEngine:
     """Keeps the app useful when TensorFlow or the checkpoint is unavailable."""
 
-    def answer(self, prompt: str, context: str = "") -> tuple[str, float]:
+    def answer(
+        self,
+        prompt: str,
+        context: str = "",
+        history: list[dict] | None = None,
+    ) -> tuple[str, float]:
         if context:
             return f"Based on my saved knowledge: {context[:700]}", 0.45
         return "I do not have enough reliable offline knowledge about that yet.", 0.1
