@@ -16,7 +16,7 @@ class TransformerBlock(layers.Layer):
         self.layernorm1 = layers.LayerNormalization()
         self.layernorm2 = layers.LayerNormalization()
 
-    def call(self, inputs):
+    def call(self, inputs, training=False):
         attention_output = self.attention(inputs, inputs, use_causal_mask=True)
         out1 = self.layernorm1(inputs + attention_output)
         ffn_output = self.ffn(out1)
@@ -37,7 +37,7 @@ class MiniGPT(tf.keras.Model):
 
         self.output_layer = layers.Dense(vocab_size)
 
-    def call(self, inputs):
+    def call(self, inputs, training=False):
         seq_len = tf.shape(inputs)[1]
         positions = tf.range(start=0, limit=seq_len, delta=1)
 
@@ -45,7 +45,7 @@ class MiniGPT(tf.keras.Model):
         x = x + self.position_embedding(positions)
 
         for block in self.blocks:
-            x = block(x)
+            x = block(x, training=training)
 
         return self.output_layer(x)
 

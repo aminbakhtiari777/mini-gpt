@@ -1,4 +1,7 @@
-from inference import generate_text
+try:
+    from .inference import generate_text
+except ImportError:
+    from inference import generate_text
 
 
 def main():

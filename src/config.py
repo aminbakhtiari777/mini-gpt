@@ -1,3 +1,8 @@
+from pathlib import Path
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
 VOCAB_SIZE = 10000
 MAX_LENGTH = 64
 EMBED_DIM = 128
@@ -8,6 +13,6 @@ BATCH_SIZE = 16
 EPOCHS = 10
 LEARNING_RATE = 0.0005
 
-TRAIN_PATH = r"C:\Users\metaking\Desktop\mini-gpt\data\train.txt"
-TOKENIZER_PATH = r"C:\Users\metaking\Desktop\mini-gpt\outputs\tokenizer.json"
-MODEL_PATH = r"C:\Users\metaking\Desktop\mini-gpt\checkpoints\mini_gpt_model.weights.h5"
+TRAIN_PATH = PROJECT_ROOT / "data" / "train.txt"
+TOKENIZER_PATH = PROJECT_ROOT / "outputs" / "tokenizer.json"
+MODEL_PATH = PROJECT_ROOT / "checkpoints" / "mini_gpt_model.weights.h5"

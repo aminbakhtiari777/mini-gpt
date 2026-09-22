@@ -1,20 +1,23 @@
 import numpy as np
+from functools import lru_cache
 
-from config import (
-    VOCAB_SIZE,
-    MAX_LENGTH,
-    EMBED_DIM,
-    NUM_HEADS,
-    FF_DIM,
-    NUM_LAYERS,
-    TOKENIZER_PATH,
-    MODEL_PATH,
-)
+try:
+    from .config import (
+        VOCAB_SIZE, MAX_LENGTH, EMBED_DIM, NUM_HEADS, FF_DIM,
+        NUM_LAYERS, TOKENIZER_PATH, MODEL_PATH,
+    )
+    from .tokenizer import MiniGPTTokenizer
+    from .model import build_model
+except ImportError:  # Allows `python src/inference.py` during local experiments.
+    from config import (
+        VOCAB_SIZE, MAX_LENGTH, EMBED_DIM, NUM_HEADS, FF_DIM,
+        NUM_LAYERS, TOKENIZER_PATH, MODEL_PATH,
+    )
+    from tokenizer import MiniGPTTokenizer
+    from model import build_model
 
-from tokenizer import MiniGPTTokenizer
-from model import build_model
 
-
+@lru_cache(maxsize=1)
 def load_model_and_tokenizer():
     tokenizer = MiniGPTTokenizer(VOCAB_SIZE)
     tokenizer.load(TOKENIZER_PATH)
@@ -54,7 +57,7 @@ def sample_next_token(logits, temperature=0.7, top_k=10):
     return next_token_id
 
 
-def generate_text(prompt, max_new_words=30):
+def generate_text(prompt, max_new_words=30, temperature=0.7, top_k=10):
     model, tokenizer = load_model_and_tokenizer()
 
     text = prompt
@@ -72,8 +75,8 @@ def generate_text(prompt, max_new_words=30):
 
         next_token_id = sample_next_token(
             next_token_logits,
-            temperature=0.7,
-            top_k=10,
+            temperature=temperature,
+            top_k=top_k,
         )
 
         if next_token_id == 0:
