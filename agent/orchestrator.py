@@ -48,6 +48,43 @@ class MiniGPTAgent:
         return None
 
     @staticmethod
+    def _normalized_message(message: str) -> str:
+        return re.sub(r"[^\w\u0600-\u06ff]+", " ", message.casefold()).strip()
+
+    @classmethod
+    def _casual_response(cls, message: str) -> str | None:
+        normalized = cls._normalized_message(message)
+        wellbeing = {
+            "how are you", "how are u", "how r you", "how r u", "how is it going",
+            "how s it going", "حالت چطوره", "حالت چطور است", "خوبی", "چطوری",
+        }
+        identity = (
+            "do you know me",
+            "who am i",
+            "i am your creator",
+            "i m your creator",
+            "منو میشناسی",
+            "من را می شناسی",
+            "من سازنده تو هستم",
+        )
+        thanks = {"thanks", "thank you", "مرسی", "ممنون", "متشکرم"}
+        goodbyes = {"bye", "goodbye", "خداحافظ", "فعلا"}
+
+        if normalized in wellbeing:
+            if looks_persian(message):
+                return "خوبم امین، ممنون. آماده‌ام با هم روی پروژه کار کنیم یا درباره هر موضوعی صحبت کنیم."
+            return "I'm doing well, Amin—thanks for asking. What would you like to work on?"
+        if any(phrase in normalized for phrase in identity):
+            if looks_persian(message):
+                return "بله، تو را به نام امین می‌شناسم؛ کسی که این پروژه Mini-GPT را ساخته و توسعه می‌دهد. فقط اطلاعاتی را نگه می‌دارم که خودت صریحاً به من بگویی یا بخواهی به خاطر بسپارم."
+            return "Yes. I know you as Amin, the person building and improving this Mini-GPT project. I only retain information you explicitly share or ask me to remember."
+        if normalized in thanks:
+            return "خواهش می‌کنم امین." if looks_persian(message) else "You're welcome, Amin."
+        if normalized in goodbyes:
+            return "فعلاً امین؛ هر وقت خواستی برگرد." if looks_persian(message) else "See you, Amin."
+        return None
+
+    @staticmethod
     def _requests_memory(message: str) -> bool:
         lowered = message.casefold()
         return any(phrase in lowered for phrase in ("remember that", "به خاطر بسپار", "یادت بمونه", "یادت بماند"))
@@ -72,8 +109,12 @@ class MiniGPTAgent:
 
     @staticmethod
     def _is_question(message: str) -> bool:
-        lowered = message.casefold()
-        return "?" in message or "؟" in message or any(lowered.startswith(word) for word in QUESTION_WORDS)
+        lowered = message.casefold().strip()
+        return (
+            "?" in message
+            or "؟" in message
+            or any(lowered == word or lowered.startswith(f"{word} ") for word in QUESTION_WORDS)
+        )
 
     @staticmethod
     def _next_query(original: str, round_number: int, evidence: list[Evidence]) -> str:
@@ -86,12 +127,18 @@ class MiniGPTAgent:
         return f"{weak_terms} facts sources {known_titles[:100]}"
 
     def _cached_context(self, message: str) -> tuple[str, float]:
-        memories = self.memory.relevant_memories(message)
-        documents = self.memory.search_cached_documents(message)
-        parts = [item["content"] for item in memories]
-        parts.extend(item["content"][:700] for item in documents)
-        context = "\n".join(parts[:5])
-        return context, lexical_score(message, context) if context else 0.0
+        parts: list[str] = []
+        scores: list[float] = []
+        for item in self.memory.relevant_memories(message):
+            content = item["content"]
+            parts.append(content)
+            scores.append(lexical_score(message, content))
+        for item in self.memory.search_cached_documents(message):
+            excerpt, score = best_excerpt(message, item["content"], sentence_limit=2)
+            if excerpt and score >= 0.18:
+                parts.append(excerpt)
+                scores.append(score)
+        return "\n".join(parts[:5]), max(scores, default=0.0)
 
     def _collect_evidence(self, message: str) -> tuple[list[Evidence], int, float]:
         evidence: list[Evidence] = []
@@ -109,8 +156,8 @@ class MiniGPTAgent:
                 if key in seen:
                     continue
                 seen.add(key)
-                excerpt, score = best_excerpt(message, document.text)
-                if score < 0.08 or not excerpt:
+                excerpt, score = best_excerpt(message, document.text, sentence_limit=2)
+                if score < 0.12 or not excerpt:
                     continue
                 evidence.append(Evidence(document=document, excerpt=excerpt, score=score))
                 self.memory.cache_document(document.url, document.title, document.text, document.provider)
@@ -124,13 +171,13 @@ class MiniGPTAgent:
 
     @staticmethod
     def _evidence_answer(message: str, evidence: list[Evidence]) -> str:
-        chosen = evidence[:4]
+        chosen = evidence[:3]
         if not chosen:
             return "اطلاعات قابل‌اعتماد کافی پیدا نکردم. می‌توانی سؤال را دقیق‌تر کنی؟" if looks_persian(message) else "I could not find enough reliable information. Could you make the question more specific?"
-        items = [f"{item.excerpt} [{index}]" for index, item in enumerate(chosen, start=1)]
+        items = [f"{item.excerpt[:450].strip()} [{index}]" for index, item in enumerate(chosen, start=1)]
         if looks_persian(message):
-            return "نتیجه‌ای که از منابع پیدا کردم:\n\n" + "\n\n".join(items)
-        return "Here is what I found from the available sources:\n\n" + "\n\n".join(items)
+            return "خلاصه منابع:\n\n" + "\n\n".join(items)
+        return "Summary from the available sources:\n\n" + "\n\n".join(items)
 
     @staticmethod
     def _insufficient_answer(message: str) -> str:
@@ -153,11 +200,17 @@ class MiniGPTAgent:
                 {"source": "user", "session_id": session_id},
             )
 
+        casual_answer = self._casual_response(message)
+        if casual_answer:
+            result = AgentAnswer(casual_answer, "conversation", 0.98, learned=learned)
+            self.memory.add_message(session_id, "assistant", result.answer)
+            return result
+
         context, context_score = self._cached_context(message)
         local_answer, local_confidence = self.engine.answer(message, context)
         if context and self._is_question(message):
-            cached_excerpt, cached_score = best_excerpt(message, context, sentence_limit=4)
-            if cached_excerpt and cached_score > 0.1:
+            cached_excerpt, cached_score = best_excerpt(message, context, sentence_limit=3)
+            if cached_excerpt and cached_score >= 0.18:
                 if looks_persian(message):
                     local_answer = "بر اساس دانش ذخیره‌شده محلی:\n\n" + cached_excerpt
                 else:
@@ -175,7 +228,7 @@ class MiniGPTAgent:
                 evidence, rounds, web_confidence = [], 0, 0.0
             if evidence:
                 answer = self._evidence_answer(message, evidence)
-                sources = [item.document for item in evidence[:4]]
+                sources = [item.document for item in evidence[:3]]
                 result = AgentAnswer(answer, "web", web_confidence, sources, rounds, learned=learned)
             else:
                 safe_answer = local_answer if local_confidence >= 0.35 or context else self._insufficient_answer(message)

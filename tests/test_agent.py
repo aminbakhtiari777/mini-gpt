@@ -6,7 +6,7 @@ from agent.config import AgentConfig
 from agent.memory import MemoryStore
 from agent.orchestrator import MiniGPTAgent
 from agent.search import CompositeSearchProvider
-from agent.text import best_excerpt, normalize_text
+from agent.text import best_excerpt, lexical_score, normalize_text
 from agent.types import SourceDocument
 
 
@@ -140,3 +140,43 @@ def test_cached_knowledge_supports_offline_answer(tmp_path):
     assert result.mode == "memory"
     assert "locally saved knowledge" in result.answer
     assert "programming language" in result.answer
+
+
+def test_casual_question_does_not_use_cached_web_content(tmp_path):
+    search = FakeSearch()
+    agent = make_agent(tmp_path, FakeEngine("irrelevant model text", 0.1), search)
+    agent.memory.cache_document(
+        "https://example.com/noisy",
+        "How are you examples",
+        "<nav>Menu Home Fashion Finance</nav> Thirty ways to say how are you.",
+        "test",
+    )
+
+    result = agent.chat("how are u?", allow_web=True)
+
+    assert result.mode == "conversation"
+    assert result.confidence == 0.98
+    assert search.calls == 0
+    assert "doing well" in result.answer
+    assert "saved knowledge" not in result.answer
+
+
+def test_creator_question_gets_concise_identity_response(tmp_path):
+    search = FakeSearch()
+    agent = make_agent(tmp_path, FakeEngine("irrelevant model text", 0.1), search)
+
+    result = agent.chat("I am your creator, do you know me?", allow_web=True)
+
+    assert result.mode == "conversation"
+    assert search.calls == 0
+    assert "Amin" in result.answer
+    assert len(result.answer) < 250
+
+
+def test_lexical_score_ignores_generic_question_words():
+    assert lexical_score("how are u?", "How are you? Menu Home Contact") == 0
+
+
+def test_html_cleaner_removes_navigation_boilerplate():
+    value = "<nav>Menu Home Contact</nav><main>Python is useful.</main><footer>Terms</footer>"
+    assert normalize_text(value) == "Python is useful."
