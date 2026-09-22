@@ -173,6 +173,59 @@ def test_creator_question_gets_concise_identity_response(tmp_path):
     assert len(result.answer) < 250
 
 
+def test_help_request_does_not_use_irrelevant_memory(tmp_path):
+    search = FakeSearch()
+    agent = make_agent(tmp_path, FakeEngine("day day", 0.78), search)
+    agent.memory.remember("day day")
+
+    result = agent.chat("I need help", allow_web=True)
+
+    assert result.mode == "conversation"
+    assert result.confidence == 0.98
+    assert result.answer == "Of course, Amin. Tell me what you need help with."
+    assert search.calls == 0
+
+
+def test_persian_help_request_is_conversational(tmp_path):
+    agent = make_agent(tmp_path, FakeEngine("متن نامرتبط", 0.9))
+
+    result = agent.chat("کمک می‌خوام", allow_web=False)
+
+    assert result.mode == "conversation"
+    assert "دقیقاً در چه موضوعی" in result.answer
+
+
+def test_persian_language_question_is_conversational(tmp_path):
+    search = FakeSearch()
+    agent = make_agent(tmp_path, FakeEngine("random story text", 0.19), search)
+
+    result = agent.chat("فارسی میفهمی؟", allow_web=True)
+
+    assert result.mode == "conversation"
+    assert "فارسی را می‌فهمم" in result.answer
+    assert search.calls == 0
+
+
+def test_language_switch_word_is_conversational(tmp_path):
+    agent = make_agent(tmp_path, FakeEngine("random story text", 0.19))
+
+    result = agent.chat("فارسی", allow_web=False)
+
+    assert result.mode == "conversation"
+    assert "فارسی" in result.answer
+    assert "random story" not in result.answer
+
+
+def test_low_confidence_statement_never_exposes_model_gibberish(tmp_path):
+    agent = make_agent(tmp_path, FakeEngine("day day random story", 0.19))
+
+    result = agent.chat("یک جمله نامشخص", allow_web=False)
+
+    assert result.mode == "offline"
+    assert "کامل متوجه نشدم" in result.answer
+    assert "day day" not in result.answer
+
+
 def test_lexical_score_ignores_generic_question_words():
     assert lexical_score("how are u?", "How are you? Menu Home Contact") == 0
 
