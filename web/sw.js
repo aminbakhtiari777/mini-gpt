@@ -1,5 +1,5 @@
-const CACHE = "minigpt-v2";
-const ASSETS = ["/", "/manifest.json", "/static/styles.css", "/static/app.js"];
+const CACHE = "minigpt-v3";
+const ASSETS = ["/", "/manifest.json", "/static/styles.css", "/static/app.js?v=3"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)));

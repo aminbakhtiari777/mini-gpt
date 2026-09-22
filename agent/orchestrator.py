@@ -242,13 +242,17 @@ class MiniGPTAgent:
 
         casual_answer = self._casual_response(message)
         if casual_answer:
+            if isinstance(self.engine, OllamaEngine):
+                generated, generated_confidence = self.engine.answer(message, "", history)
+                if generated_confidence >= 0.35:
+                    casual_answer = generated
             result = AgentAnswer(casual_answer, "conversation", 0.98, learned=learned)
             self.memory.add_message(session_id, "assistant", result.answer)
             return result
 
         context, context_score = self._cached_context(message)
         local_answer, local_confidence = self.engine.answer(message, context, history)
-        if context and self._is_question(message):
+        if context and self._is_question(message) and not isinstance(self.engine, OllamaEngine):
             cached_excerpt, cached_score = best_excerpt(message, context, sentence_limit=3)
             if cached_excerpt and cached_score >= 0.18:
                 if looks_persian(message):
@@ -307,6 +311,7 @@ class MiniGPTAgent:
                 )
             result = AgentAnswer(safe_answer, mode, confidence, learned=learned)
 
-        result.answer = apply_personality(result.answer, message)
+        if not isinstance(self.engine, OllamaEngine):
+            result.answer = apply_personality(result.answer, message)
         self.memory.add_message(session_id, "assistant", result.answer)
         return result

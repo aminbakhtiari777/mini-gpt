@@ -4,6 +4,7 @@ const messages = document.querySelector("#messages");
 const statusElement = document.querySelector("#status");
 const webToggle = document.querySelector("#web-toggle");
 const submitButton = form.querySelector("button");
+let activeModel = "Fallback engine";
 
 function createSessionId() {
   if (globalThis.crypto && typeof globalThis.crypto.randomUUID === "function") {
@@ -16,6 +17,24 @@ function createSessionId() {
 
 const sessionId = localStorage.getItem("minigpt-session") || createSessionId();
 localStorage.setItem("minigpt-session", sessionId);
+
+function setReadyStatus() {
+  statusElement.textContent = `Ready • ${activeModel}`;
+}
+
+async function loadEngineStatus() {
+  try {
+    const response = await fetch("/api/health", { cache: "no-store" });
+    const health = await response.json();
+    activeModel = health.engine === "OllamaEngine"
+      ? `Ollama • ${health.model}`
+      : "Fallback engine";
+    setReadyStatus();
+  } catch (error) {
+    statusElement.textContent = "Server unavailable";
+    console.warn("Health check failed", error);
+  }
+}
 
 function addMessage(text, role, metadata = "", sources = []) {
   const message = document.createElement("article");
@@ -94,7 +113,7 @@ form.addEventListener("submit", async (event) => {
       `${result.mode} • ${Math.round(result.confidence * 100)}% confidence`,
       result.sources,
     );
-    statusElement.textContent = "Ready";
+    setReadyStatus();
   } catch (error) {
     pendingMessage.textContent = "Mini-GPT is unavailable. Verify that the server is running.";
     statusElement.textContent = "Connection error";
@@ -117,3 +136,6 @@ if ("serviceWorker" in navigator) {
     console.warn("Service worker registration failed", error);
   });
 }
+
+webToggle.addEventListener("change", setReadyStatus);
+loadEngineStatus();
