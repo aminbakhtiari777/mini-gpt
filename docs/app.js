@@ -1,7 +1,8 @@
-import { CreateMLCEngine } from "https://esm.run/@mlc-ai/web-llm@0.2.85";
+import { CreateMLCEngine, hasModelInCache } from "https://esm.run/@mlc-ai/web-llm@0.2.85";
+import { ZamisMemory } from "./zamis-memory.js?v=3";
 
 const MODEL_ID = "Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
-const SYSTEM_PROMPT = `You are Nava, Amin's private on-device AI assistant.
+const SYSTEM_PROMPT = `You are Zamis (زمیس), Amin's private on-device AI assistant.
 Reply in the same language as the user. Write natural Persian for Persian messages and natural English for English messages.
 Be warm, concise, honest, and useful. Ask a short clarifying question when necessary.
 Use saved memories and web context only when relevant. Never invent sources or claim consciousness.
@@ -23,21 +24,8 @@ const elements = {
 
 let engine = null;
 let busy = false;
-let history = readJSON("nava-ipad-history", []);
-let memories = readJSON("nava-ipad-memories", []);
-
-function readJSON(key, fallback) {
-  try {
-    return JSON.parse(localStorage.getItem(key)) ?? fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function persist() {
-  localStorage.setItem("nava-ipad-history", JSON.stringify(history.slice(-40)));
-  localStorage.setItem("nava-ipad-memories", JSON.stringify(memories.slice(-100)));
-}
+let history = [];
+const memory = new ZamisMemory();
 
 function addMessage(text, role, sources = [], save = true) {
   const article = document.createElement("article");
@@ -63,7 +51,7 @@ function addMessage(text, role, sources = [], save = true) {
   elements.messages.scrollTop = elements.messages.scrollHeight;
   if (save && (role === "user" || role === "assistant")) {
     history.push({ role, content: text });
-    persist();
+    void memory.appendMessage(role, text).catch((error) => console.warn("Memory write failed", error));
   }
   return article;
 }
@@ -93,7 +81,12 @@ async function loadModel() {
     return;
   }
   elements.load.disabled = true;
-  elements.status.textContent = "Loading local model…";
+  const cached = await hasModelInCache(MODEL_ID).catch(() => false);
+  elements.status.textContent = cached ? "Loading cached model…" : "Downloading local model…";
+  elements.progressLabel.textContent = cached
+    ? "Loading the saved model into memory…"
+    : "Downloading the model for first use…";
+  void navigator.storage?.persist?.().catch(() => false);
   try {
     engine = await CreateMLCEngine(MODEL_ID, {
       initProgressCallback: (report) => {
@@ -115,23 +108,18 @@ async function loadModel() {
   }
 }
 
-function meaningfulWords(text) {
-  return new Set(
-    text.toLocaleLowerCase().match(/[\p{L}\p{N}]{3,}/gu) ?? [],
-  );
-}
-
-function relevantMemories(query) {
-  const queryWords = meaningfulWords(query);
-  return memories
-    .map((content) => ({
-      content,
-      score: [...meaningfulWords(content)].filter((word) => queryWords.has(word)).length,
-    }))
-    .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 4)
-    .map((item) => item.content);
+async function updateModelButton() {
+  try {
+    const cached = await hasModelInCache(MODEL_ID);
+    elements.load.textContent = cached
+      ? "Load cached AI model"
+      : "Download AI model • ~1.6 GB";
+    elements.progressLabel.textContent = cached
+      ? "The model is saved on this iPad. Loading it does not download it again."
+      : "Keep Safari open during the first download.";
+  } catch (error) {
+    console.warn("Could not inspect the model cache", error);
+  }
 }
 
 function extractMemory(message) {
@@ -188,12 +176,9 @@ async function wikipediaSearch(query) {
 
 async function answer(message, placeholder) {
   const saved = extractMemory(message);
-  if (saved && !memories.includes(saved)) {
-    memories.push(saved);
-    persist();
-  }
+  if (saved) await memory.addMemory(saved, { importance: "high" });
 
-  const related = relevantMemories(message);
+  const related = await memory.findRelevant(message, 4);
   const research = await wikipediaSearch(message);
   const contextParts = [];
   if (related.length) contextParts.push(`Relevant saved memories:\n- ${related.join("\n- ")}`);
@@ -223,7 +208,7 @@ async function answer(message, placeholder) {
     elements.messages.scrollTop = elements.messages.scrollHeight;
   }
   history.push({ role: "assistant", content: text });
-  persist();
+  await memory.appendMessage("assistant", text);
 
   if (research.sources.length) {
     const sourceBox = document.createElement("div");
@@ -271,14 +256,16 @@ elements.prompt.addEventListener("keydown", (event) => {
   }
 });
 
-elements.clear.addEventListener("click", () => {
+elements.clear.addEventListener("click", async () => {
   history = [];
-  persist();
+  await memory.clearConversation();
   elements.messages.replaceChildren();
   addMessage("Chat cleared. Your explicit memories are still saved.", "assistant", [], false);
 });
 
 elements.load.addEventListener("click", loadModel);
+await memory.init();
+history = await memory.loadRecentMessages(40);
 restoreHistory();
 
 if (!navigator.gpu) {
@@ -286,6 +273,7 @@ if (!navigator.gpu) {
   elements.progressLabel.textContent = "Open in Safari on iPadOS 26 or newer.";
 } else {
   elements.status.textContent = "Compatible • Model not loaded";
+  await updateModelButton();
 }
 
 if ("serviceWorker" in navigator) {

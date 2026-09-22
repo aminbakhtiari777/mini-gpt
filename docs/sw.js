@@ -1,5 +1,13 @@
-const CACHE = "nava-ipad-v1";
-const APP_SHELL = ["./", "./index.html", "./styles.css?v=1", "./app.js?v=1", "./manifest.webmanifest", "./icon.svg"];
+const CACHE = "zamis-ipad-v4";
+const APP_SHELL = [
+  "./",
+  "./index.html",
+  "./styles.css?v=2",
+  "./app.js?v=4",
+  "./zamis-memory.js?v=3",
+  "./manifest.webmanifest",
+  "./icon.svg",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(APP_SHELL)));
