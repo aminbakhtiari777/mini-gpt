@@ -49,7 +49,8 @@ class MiniGPTAgent:
 
     @staticmethod
     def _normalized_message(message: str) -> str:
-        return re.sub(r"[^\w\u0600-\u06ff]+", " ", message.casefold()).strip()
+        lowered = message.casefold().replace("؟", " ")
+        return re.sub(r"[^\w\u0600-\u06ff]+", " ", lowered).strip()
 
     @classmethod
     def _casual_response(cls, message: str) -> str | None:
@@ -69,7 +70,23 @@ class MiniGPTAgent:
         )
         thanks = {"thanks", "thank you", "مرسی", "ممنون", "متشکرم"}
         goodbyes = {"bye", "goodbye", "خداحافظ", "فعلا"}
+        greetings = {
+            "hello", "hi", "hey", "سلام", "درود", "صبح بخیر", "شب بخیر",
+        }
+        help_requests = {
+            "help", "help me", "i need help", "i need your help", "can you help me",
+            "could you help me", "i want help", "کمک", "کمکم کن", "کمک میخوام", "کمک می خوام",
+            "کمک می خواهم", "به کمک نیاز دارم", "میشه کمکم کنی", "می تونی کمکم کنی",
+        }
+        persian_requests = {
+            "فارسی", "فارسی صحبت کن", "فارسی حرف بزن", "فارسی میفهمی", "فارسی می فهمی",
+            "فارسی بلدی", "persian", "speak persian", "do you speak persian",
+        }
 
+        if normalized in greetings:
+            if looks_persian(message):
+                return "سلام امین! من اینجام. چطور می‌توانم کمکت کنم؟"
+            return "Hello, Amin! I'm here. How can I help?"
         if normalized in wellbeing:
             if looks_persian(message):
                 return "خوبم امین، ممنون. آماده‌ام با هم روی پروژه کار کنیم یا درباره هر موضوعی صحبت کنیم."
@@ -82,6 +99,12 @@ class MiniGPTAgent:
             return "خواهش می‌کنم امین." if looks_persian(message) else "You're welcome, Amin."
         if normalized in goodbyes:
             return "فعلاً امین؛ هر وقت خواستی برگرد." if looks_persian(message) else "See you, Amin."
+        if normalized in help_requests:
+            if looks_persian(message):
+                return "حتماً امین. بگو دقیقاً در چه موضوعی کمک می‌خواهی؟"
+            return "Of course, Amin. Tell me what you need help with."
+        if normalized in persian_requests:
+            return "بله امین، فارسی را می‌فهمم و می‌توانم فارسی با تو صحبت کنم. چه کمکی می‌خواهی؟"
         return None
 
     @staticmethod
@@ -185,6 +208,12 @@ class MiniGPTAgent:
             return "دانش آفلاین من برای پاسخ مطمئن به این سؤال کافی نیست. اینترنت را فعال کن یا اطلاعات بیشتری در اختیارم بگذار."
         return "My offline knowledge is not sufficient for a reliable answer. Enable web search or give me more context."
 
+    @staticmethod
+    def _unclear_message_answer(message: str) -> str:
+        if looks_persian(message):
+            return "منظورت را کامل متوجه نشدم. لطفاً کمی واضح‌تر یا کامل‌تر بنویس تا درست کمکت کنم."
+        return "I didn't fully understand that. Please add a little more detail so I can help properly."
+
     def chat(self, message: str, session_id: str | None = None, allow_web: bool = True) -> AgentAnswer:
         session_id = session_id or str(uuid.uuid4())
         message = message.strip()
@@ -243,8 +272,12 @@ class MiniGPTAgent:
             mode = "memory" if context else "offline"
             confidence = max(local_confidence, context_score)
             safe_answer = local_answer
-            if self._is_question(message) and confidence < 0.35 and not context:
-                safe_answer = self._insufficient_answer(message)
+            if confidence < 0.35 and not context:
+                safe_answer = (
+                    self._insufficient_answer(message)
+                    if self._is_question(message)
+                    else self._unclear_message_answer(message)
+                )
             result = AgentAnswer(safe_answer, mode, confidence, learned=learned)
 
         result.answer = apply_personality(result.answer, message)
