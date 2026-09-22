@@ -25,6 +25,6 @@ class AgentConfig:
     max_context_messages: int = int(os.getenv("MINIGPT_CONTEXT_MESSAGES", "6"))
     ollama_enabled: bool = os.getenv("MINIGPT_OLLAMA_ENABLED", "1") == "1"
     ollama_url: str = os.getenv("MINIGPT_OLLAMA_URL", "http://127.0.0.1:11434")
-    ollama_model: str = os.getenv("MINIGPT_OLLAMA_MODEL", "qwen3:4b")
+    ollama_model: str = os.getenv("MINIGPT_OLLAMA_MODEL", "qwen3:1.7b")
     ollama_timeout: float = float(os.getenv("MINIGPT_OLLAMA_TIMEOUT", "120"))
     ollama_context_length: int = int(os.getenv("MINIGPT_OLLAMA_CONTEXT", "2048"))

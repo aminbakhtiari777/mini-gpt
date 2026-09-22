@@ -127,13 +127,13 @@ Ollama provides the primary conversational engine when it is installed and the c
 3. Download the recommended multilingual model:
 
 ```powershell
-ollama pull qwen3:4b
+ollama pull qwen3:1.7b
 ```
 
 4. Verify the model independently:
 
 ```powershell
-ollama run qwen3:4b
+ollama run qwen3:1.7b
 ```
 
 5. Enter `/bye` to exit the model session, then start Mini-GPT:
@@ -152,7 +152,7 @@ Check the active engine at [http://localhost:8000/api/health](http://localhost:8
   "status": "ok",
   "agent_ready": true,
   "engine": "OllamaEngine",
-  "model": "qwen3:4b"
+  "model": "qwen3:1.7b"
 }
 ```
 
@@ -203,7 +203,7 @@ The application is configured through environment variables.
 | `MINIGPT_REMEMBER` | `0` | Set to `1` to persist every user message as memory |
 | `MINIGPT_OLLAMA_ENABLED` | `1` | Use Ollama when its server and configured model are available |
 | `MINIGPT_OLLAMA_URL` | `http://127.0.0.1:11434` | Local Ollama server URL |
-| `MINIGPT_OLLAMA_MODEL` | `qwen3:4b` | Ollama chat model name |
+| `MINIGPT_OLLAMA_MODEL` | `qwen3:1.7b` | Ollama chat model name |
 | `MINIGPT_OLLAMA_TIMEOUT` | `120` | Maximum generation time in seconds |
 | `MINIGPT_OLLAMA_CONTEXT` | `4096` | Ollama context window used by Mini-GPT |
 
