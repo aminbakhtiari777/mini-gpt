@@ -5,7 +5,16 @@ const statusElement = document.querySelector("#status");
 const webToggle = document.querySelector("#web-toggle");
 const submitButton = form.querySelector("button");
 
-const sessionId = localStorage.getItem("minigpt-session") || crypto.randomUUID();
+function createSessionId() {
+  if (globalThis.crypto && typeof globalThis.crypto.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+
+  const randomPart = Math.random().toString(36).slice(2);
+  return `session-${Date.now()}-${randomPart}`;
+}
+
+const sessionId = localStorage.getItem("minigpt-session") || createSessionId();
 localStorage.setItem("minigpt-session", sessionId);
 
 function addMessage(text, role, metadata = "", sources = []) {
