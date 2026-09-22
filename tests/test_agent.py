@@ -250,6 +250,8 @@ def test_ollama_engine_uses_history_and_context():
             return Response({"models": [{"name": "qwen3:4b"}]})
         payload = json.loads(request.data.decode("utf-8"))
         assert payload["stream"] is False
+        assert payload["think"] is False
+        assert payload["options"]["num_predict"] == 320
         assert payload["messages"][0]["role"] == "system"
         assert "saved fact" in payload["messages"][0]["content"]
         assert payload["messages"][-2] == {"role": "assistant", "content": "previous reply"}
@@ -284,6 +286,32 @@ def test_ollama_engine_reports_missing_model():
 
     assert not engine.available
     assert "not installed" in engine.error
+
+
+def test_ollama_question_generates_only_once_after_web_retrieval(tmp_path):
+    class CountingOllama(OllamaEngine):
+        def __init__(self):
+            self.calls = 0
+            self.model_name = "test-model"
+
+        @property
+        def available(self):
+            return True
+
+        def answer(self, prompt, context="", history=None):
+            self.calls += 1
+            assert "Answer using only the sources" in context
+            return "synthesized answer [1]", 0.5
+
+    engine = CountingOllama()
+    search = FakeSearch()
+    agent = make_agent(tmp_path, engine, search)
+
+    result = agent.chat("What is Python?", allow_web=True)
+
+    assert result.mode == "web"
+    assert engine.calls == 1
+    assert result.answer == "synthesized answer [1]"
 
 
 def test_lexical_score_ignores_generic_question_words():

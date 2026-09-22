@@ -251,7 +251,17 @@ class MiniGPTAgent:
             return result
 
         context, context_score = self._cached_context(message)
-        local_answer, local_confidence = self.engine.answer(message, context, history)
+        search_first = (
+            isinstance(self.engine, OllamaEngine)
+            and allow_web
+            and not self.config.offline_only
+            and self._is_question(message)
+        )
+        if search_first:
+            # Avoid generating twice: retrieve first, then ask Ollama to synthesize once.
+            local_answer, local_confidence = "", 0.0
+        else:
+            local_answer, local_confidence = self.engine.answer(message, context, history)
         if context and self._is_question(message) and not isinstance(self.engine, OllamaEngine):
             cached_excerpt, cached_score = best_excerpt(message, context, sentence_limit=3)
             if cached_excerpt and cached_score >= 0.18:
@@ -291,6 +301,8 @@ class MiniGPTAgent:
                     learned=learned,
                 )
             else:
+                if isinstance(self.engine, OllamaEngine) and not local_answer:
+                    local_answer, local_confidence = self.engine.answer(message, context, history)
                 safe_answer = local_answer if local_confidence >= 0.35 or context else self._insufficient_answer(message)
                 result = AgentAnswer(
                     safe_answer,

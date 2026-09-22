@@ -90,26 +90,27 @@ class OllamaEngine:
 
         system = SYSTEM_PROMPT
         if context:
-            system += f"\n\nRelevant local or researched context:\n{context[:6000]}"
+            system += f"\n\nRelevant local or researched context:\n{context[:3500]}"
         messages = [{"role": "system", "content": system}]
-        for item in (history or [])[-12:]:
+        for item in (history or [])[-6:]:
             role = item.get("role")
             content = str(item.get("content", "")).strip()
             if role in {"user", "assistant"} and content:
-                messages.append({"role": role, "content": content[:3000]})
+                messages.append({"role": role, "content": content[:1500]})
         messages.append({"role": "user", "content": prompt})
 
         payload = {
             "model": self.model_name,
             "messages": messages,
             "stream": False,
-            "keep_alive": "10m",
+            "think": False,
+            "keep_alive": "30m",
             "options": {
                 "temperature": 0.55,
                 "top_p": 0.9,
                 "repeat_penalty": 1.1,
                 "num_ctx": self.context_length,
-                "num_predict": 600,
+                "num_predict": 320,
             },
         }
         try:
