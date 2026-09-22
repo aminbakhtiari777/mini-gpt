@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b1020">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Nava">
+  <title>Nava • Private iPad AI</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icon.svg">
+  <link rel="stylesheet" href="./styles.css?v=1">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="identity">
+        <div class="orb" aria-hidden="true"></div>
+        <div>
+          <h1>Nava</h1>
+          <p id="status">Checking this iPad…</p>
+        </div>
+      </div>
+      <label class="web-switch" title="Use Wikipedia when online">
+        <input id="web-toggle" type="checkbox" checked>
+        <span>Web</span>
+      </label>
+    </header>
+
+    <section id="setup" class="setup-card">
+      <span class="eyebrow">PRIVATE • ON‑DEVICE</span>
+      <h2>Your AI runs on this iPad</h2>
+      <p>The model is downloaded once, cached in Safari, and used locally. No Windows server is required.</p>
+      <button id="load-model" type="button">Download AI model • ~1.6 GB</button>
+      <div class="progress-track" role="progressbar" aria-label="Model download progress">
+        <div id="progress-bar" class="progress-bar"></div>
+      </div>
+      <small id="progress-label">Keep Safari open during the first download.</small>
+    </section>
+
+    <section id="messages" class="messages" aria-live="polite">
+      <article class="message assistant" dir="auto">
+        سلام امین، من نوا هستم. بعد از دانلود مدل می‌توانی فارسی یا English با من صحبت کنی.
+      </article>
+    </section>
+
+    <form id="chat-form" class="composer">
+      <textarea id="prompt" rows="1" dir="auto" placeholder="پیامت را بنویس…" disabled required></textarea>
+      <button id="send" type="submit" aria-label="Send message" disabled>↑</button>
+    </form>
+
+    <footer>
+      <button id="clear-chat" class="text-button" type="button">Clear chat</button>
+      <span>Local model • Local memory</span>
+    </footer>
+  </main>
+  <script type="module" src="./app.js?v=1"></script>
+</body>
+</html>

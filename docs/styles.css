@@ -1,0 +1,151 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+  background: #070b16;
+  color: #f7f8fc;
+  --panel: rgba(20, 28, 49, 0.82);
+  --line: rgba(255, 255, 255, 0.09);
+  --muted: #9ba7bd;
+  --accent: #8b7cff;
+  --accent-2: #43d9bd;
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; min-height: 100%; }
+
+body {
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at 15% 0%, rgba(91, 74, 255, 0.22), transparent 38%),
+    radial-gradient(circle at 90% 100%, rgba(42, 211, 180, 0.13), transparent 35%),
+    #070b16;
+}
+
+button, textarea { font: inherit; }
+
+.app-shell {
+  width: min(100%, 920px);
+  height: 100dvh;
+  margin: 0 auto;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto auto;
+  padding: max(18px, env(safe-area-inset-top)) 18px max(12px, env(safe-area-inset-bottom));
+  gap: 14px;
+}
+
+.topbar, .identity { display: flex; align-items: center; }
+.topbar { justify-content: space-between; }
+.identity { gap: 12px; }
+.identity h1 { margin: 0; font-size: 24px; letter-spacing: -0.03em; }
+.identity p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+
+.orb {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, var(--accent), var(--accent-2));
+  box-shadow: 0 0 30px rgba(111, 103, 255, 0.5);
+}
+
+.web-switch {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: rgba(255,255,255,0.04);
+  font-size: 13px;
+}
+.web-switch input { accent-color: var(--accent); }
+
+.setup-card {
+  padding: 20px;
+  border: 1px solid rgba(139,124,255,0.32);
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(139,124,255,0.13), rgba(67,217,189,0.07));
+  backdrop-filter: blur(20px);
+}
+.setup-card.ready { display: none; }
+.eyebrow { font-size: 11px; letter-spacing: 0.12em; color: var(--accent-2); }
+.setup-card h2 { margin: 7px 0 6px; font-size: 22px; }
+.setup-card p { margin: 0 0 14px; color: var(--muted); line-height: 1.45; }
+.setup-card button {
+  width: 100%;
+  border: 0;
+  border-radius: 14px;
+  padding: 13px 16px;
+  color: white;
+  font-weight: 700;
+  background: linear-gradient(135deg, #7566ff, #4a95ff);
+}
+.setup-card button:disabled { opacity: 0.55; }
+
+.progress-track { height: 6px; background: rgba(255,255,255,0.08); border-radius: 99px; margin-top: 14px; overflow: hidden; }
+.progress-bar { width: 0; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 180ms ease; }
+#progress-label { display: block; color: var(--muted); margin-top: 8px; }
+
+.messages {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 6px 2px;
+  overscroll-behavior: contain;
+}
+
+.message {
+  max-width: min(82%, 680px);
+  padding: 12px 14px;
+  border-radius: 18px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.message.user { align-self: flex-end; background: linear-gradient(135deg, #6d5df3, #416fe8); border-bottom-right-radius: 6px; }
+.message.assistant { align-self: flex-start; background: var(--panel); border: 1px solid var(--line); border-bottom-left-radius: 6px; }
+.message .sources { display: grid; gap: 5px; margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--line); }
+.message .sources a { color: #aebcff; font-size: 12px; text-decoration: none; }
+
+.composer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgba(16, 22, 39, 0.92);
+  backdrop-filter: blur(22px);
+}
+.composer textarea {
+  resize: none;
+  max-height: 140px;
+  border: 0;
+  outline: 0;
+  padding: 10px;
+  color: white;
+  background: transparent;
+}
+.composer textarea::placeholder { color: #768198; }
+.composer button {
+  align-self: end;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 14px;
+  color: #07111d;
+  font-size: 22px;
+  background: var(--accent-2);
+}
+.composer button:disabled, .composer textarea:disabled { opacity: 0.4; }
+
+footer { display: flex; align-items: center; justify-content: space-between; color: #6f7b91; font-size: 11px; }
+.text-button { border: 0; padding: 5px; color: #8f9ab0; background: transparent; }
+
+@media (max-width: 560px) {
+  .app-shell { padding-inline: 10px; }
+  .message { max-width: 90%; }
+  .setup-card { padding: 17px; }
+}

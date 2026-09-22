@@ -167,6 +167,12 @@ The Apple device and the Windows computer must be connected to the same trusted 
 
 The PWA provides an app-like interface, but inference still runs on the Windows host. The host must remain powered on, connected to the network, and awake.
 
+## Serverless iPad edition
+
+The repository also includes a separate iPad-native web edition in `docs/`. It runs a browser-ready Qwen model directly in Safari using WebLLM and WebGPU, stores chat data locally, supports Persian and English, and does not require the Windows server after deployment.
+
+See [`IPAD_SETUP.md`](IPAD_SETUP.md) for GitHub Pages deployment and first-run instructions.
+
 ## Docker
 
 ```bash
