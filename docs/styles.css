@@ -22,7 +22,7 @@ body {
     #070b16;
 }
 
-button, textarea { font: inherit; }
+button, textarea, select { font: inherit; }
 
 .app-shell {
   width: min(100%, 920px);
@@ -48,7 +48,8 @@ button, textarea { font: inherit; }
   box-shadow: 0 0 30px rgba(111, 103, 255, 0.5);
 }
 
-.web-switch {
+.topbar-controls { display: flex; gap: 7px; }
+.pill-switch {
   display: flex;
   gap: 8px;
   align-items: center;
@@ -59,7 +60,7 @@ button, textarea { font: inherit; }
   background: rgba(255,255,255,0.04);
   font-size: 13px;
 }
-.web-switch input { accent-color: var(--accent); }
+.pill-switch input { accent-color: var(--accent); }
 
 .setup-card {
   padding: 20px;
@@ -119,6 +120,16 @@ button, textarea { font: inherit; }
   background: rgba(16, 22, 39, 0.92);
   backdrop-filter: blur(22px);
 }
+.composer-actions { display: flex; align-items: end; gap: 7px; }
+.composer select {
+  height: 44px;
+  max-width: 84px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0 7px;
+  color: var(--muted);
+  background: #11182a;
+}
 .composer textarea {
   resize: none;
   max-height: 140px;
@@ -140,6 +151,16 @@ button, textarea { font: inherit; }
   background: var(--accent-2);
 }
 .composer button:disabled, .composer textarea:disabled { opacity: 0.4; }
+.composer .microphone {
+  color: #f5f7ff;
+  font-size: 16px;
+  background: #27314a;
+}
+.composer .microphone.listening {
+  color: white;
+  background: #e75068;
+  box-shadow: 0 0 0 6px rgba(231, 80, 104, 0.16);
+}
 
 footer { display: flex; align-items: center; justify-content: space-between; color: #6f7b91; font-size: 11px; }
 .text-button { border: 0; padding: 5px; color: #8f9ab0; background: transparent; }
@@ -148,4 +169,8 @@ footer { display: flex; align-items: center; justify-content: space-between; col
   .app-shell { padding-inline: 10px; }
   .message { max-width: 90%; }
   .setup-card { padding: 17px; }
+  .pill-switch { padding: 8px; }
+  .pill-switch span { display: none; }
+  .composer { grid-template-columns: minmax(0, 1fr); }
+  .composer-actions { justify-content: flex-end; }
 }

@@ -3,7 +3,8 @@ import {
   deleteModelAllInfoInCache,
   hasModelInCache,
 } from "https://esm.run/@mlc-ai/web-llm@0.2.85";
-import { ZamisMemory } from "./zamis-memory.js?v=10";
+import { ZamisMemory } from "./zamis-memory.js?v=11";
+import { createVoiceController, detectSpeechLanguage } from "./zamis-voice.js?v=11";
 import {
   SYSTEM_PROMPT,
   cleanModelResponse,
@@ -15,7 +16,7 @@ import {
   isPersonalRecallQuery,
   shouldSearchWeb,
   summarizeExtract,
-} from "./zamis-brain.js?v=10";
+} from "./zamis-brain.js?v=11";
 
 const MODEL_ID = "Qwen2.5-3B-Instruct-q4f16_1-MLC";
 
@@ -29,14 +30,42 @@ const elements = {
   form: document.querySelector("#chat-form"),
   prompt: document.querySelector("#prompt"),
   send: document.querySelector("#send"),
+  microphone: document.querySelector("#microphone"),
+  speechLanguage: document.querySelector("#speech-language"),
+  speak: document.querySelector("#speak-toggle"),
   web: document.querySelector("#web-toggle"),
   clear: document.querySelector("#clear-chat"),
+  appMode: document.querySelector("#app-mode"),
 };
 
 let engine = null;
 let busy = false;
 let history = [];
+let lastSpeechLanguage = localStorage.getItem("zamis-last-speech-language") || "fa-IR";
 const memory = new ZamisMemory();
+const voice = createVoiceController({
+  onListeningChange: (listening) => {
+    elements.microphone.classList.toggle("listening", listening);
+    elements.microphone.setAttribute("aria-label", listening ? "Stop voice input" : "Start voice input");
+    elements.status.textContent = listening
+      ? (lastSpeechLanguage === "fa-IR" ? "در حال شنیدن…" : "Listening…")
+      : (engine ? "Ready • On-device • Private" : elements.status.textContent);
+  },
+  onError: (message) => {
+    elements.status.textContent = message;
+  },
+  onTranscript: (transcript, final, recognitionLanguage) => {
+    if (!transcript) return;
+    elements.prompt.value = transcript;
+    if (!final) return;
+    lastSpeechLanguage = detectSpeechLanguage(transcript, recognitionLanguage);
+    localStorage.setItem("zamis-last-speech-language", lastSpeechLanguage);
+    setTimeout(() => elements.form.requestSubmit(), 80);
+  },
+});
+
+elements.speak.checked = localStorage.getItem("zamis-speak-enabled") !== "false";
+elements.speechLanguage.value = localStorage.getItem("zamis-speech-language") || "auto";
 
 function addMessage(text, role, sources = [], save = true) {
   const article = document.createElement("article");
@@ -77,6 +106,7 @@ function setBusy(value) {
   busy = value;
   elements.prompt.disabled = value || !engine;
   elements.send.disabled = value || !engine;
+  elements.microphone.disabled = value || !engine || !voice.recognitionSupported;
 }
 
 function parseProgress(report) {
@@ -85,7 +115,7 @@ function parseProgress(report) {
   return fraction !== null ? Math.round(fraction * 100) : match ? Number(match[1]) : 0;
 }
 
-async function loadModel() {
+async function loadModel({ automatic = false } = {}) {
   if (!navigator.gpu) {
     elements.progressLabel.textContent = "WebGPU is unavailable. Update iPadOS and open this page in Safari.";
     elements.status.textContent = "WebGPU unavailable";
@@ -104,6 +134,7 @@ async function loadModel() {
         const percent = Math.min(100, parseProgress(report));
         elements.progress.style.width = `${percent}%`;
         elements.progressLabel.textContent = report.text || `Downloading model… ${percent}%`;
+        if (automatic) elements.status.textContent = `Starting Zamis… ${percent}%`;
       },
     });
     elements.progress.style.width = "100%";
@@ -113,6 +144,7 @@ async function loadModel() {
     elements.prompt.focus();
   } catch (error) {
     console.error(error);
+    elements.setup.classList.remove("ready");
     elements.load.disabled = false;
     const errorMessage = String(error?.message ?? error);
     const corruptCache = /tensor-cache|shard size|record range|cache.*(?:corrupt|invalid)/iu.test(errorMessage);
@@ -324,6 +356,7 @@ elements.form.addEventListener("submit", async (event) => {
   try {
     await answer(message, placeholder);
     elements.status.textContent = "Ready • On-device • Private";
+    if (elements.speak.checked) voice.speak(placeholder.firstChild?.textContent ?? placeholder.textContent);
   } catch (error) {
     console.error(error);
     placeholder.textContent = looksPersian(message)
@@ -334,6 +367,29 @@ elements.form.addEventListener("submit", async (event) => {
     setBusy(false);
     elements.prompt.focus();
   }
+});
+
+elements.microphone.addEventListener("click", () => {
+  if (elements.microphone.classList.contains("listening")) {
+    voice.stop();
+    return;
+  }
+  const selected = elements.speechLanguage.value;
+  const language = selected === "auto"
+    ? detectSpeechLanguage(elements.prompt.value, lastSpeechLanguage)
+    : selected;
+  lastSpeechLanguage = language;
+  localStorage.setItem("zamis-last-speech-language", language);
+  voice.start(language);
+});
+
+elements.speak.addEventListener("change", () => {
+  localStorage.setItem("zamis-speak-enabled", String(elements.speak.checked));
+  if (!elements.speak.checked) globalThis.speechSynthesis?.cancel?.();
+});
+
+elements.speechLanguage.addEventListener("change", () => {
+  localStorage.setItem("zamis-speech-language", elements.speechLanguage.value);
 });
 
 elements.prompt.addEventListener("keydown", (event) => {
@@ -354,13 +410,26 @@ elements.load.addEventListener("click", loadModel);
 await memory.init();
 history = await memory.loadRecentMessages(40);
 restoreHistory();
+void navigator.storage?.persist?.().catch(() => false);
+
+const standalone = window.matchMedia?.("(display-mode: standalone)").matches || navigator.standalone === true;
+elements.appMode.textContent = standalone
+  ? "Installed • Local model • Local memory"
+  : "Install: Share → Add to Home Screen";
 
 if (!navigator.gpu) {
   elements.status.textContent = "WebGPU unavailable";
   elements.progressLabel.textContent = "Open in Safari on iPadOS 26 or newer.";
 } else {
-  elements.status.textContent = "Compatible • Model not loaded";
-  await updateModelButton();
+  const cached = await hasModelInCache(MODEL_ID).catch(() => false);
+  if (cached) {
+    elements.setup.classList.add("ready");
+    elements.status.textContent = "Starting Zamis…";
+    await loadModel({ automatic: true });
+  } else {
+    elements.status.textContent = "Compatible • Model not loaded";
+    await updateModelButton();
+  }
 }
 
 if ("serviceWorker" in navigator) {

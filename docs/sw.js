@@ -1,14 +1,18 @@
-const CACHE = "zamis-ipad-v10";
+const CACHE = "zamis-ipad-v11";
 const APP_CACHE_PREFIXES = ["zamis-ipad-", "nava-ipad-"];
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=2",
-  "./app.js?v=10",
-  "./zamis-memory.js?v=10",
-  "./zamis-brain.js?v=10",
+  "./styles.css?v=11",
+  "./app.js?v=11",
+  "./zamis-memory.js?v=11",
+  "./zamis-brain.js?v=11",
+  "./zamis-voice.js?v=11",
   "./manifest.webmanifest",
   "./icon.svg",
+  "./icon-192.png",
+  "./icon-512.png",
+  "./apple-touch-icon.png",
 ];
 
 self.addEventListener("install", (event) => {

@@ -1,6 +1,6 @@
 {
-  "name": "Nava • Private iPad AI",
-  "short_name": "Nava",
+  "name": "Zamis • Private iPad AI",
+  "short_name": "Zamis",
   "description": "A private bilingual AI assistant that runs locally on iPad.",
   "start_url": "./",
   "scope": "./",
@@ -10,9 +10,15 @@
   "orientation": "any",
   "icons": [
     {
-      "src": "./icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]

@@ -10,8 +10,8 @@
   <title>Zamis • Private iPad AI</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="./icon.svg">
-  <link rel="stylesheet" href="./styles.css?v=2">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+  <link rel="stylesheet" href="./styles.css?v=11">
 </head>
 <body>
   <main class="app-shell">
@@ -20,7 +20,10 @@
         <div class="orb" aria-hidden="true"></div>
         <div><h1>Zamis</h1><p id="status">Your private AI assistant</p></div>
       </div>
-      <label class="web-switch"><input id="web-toggle" type="checkbox" checked><span>Web</span></label>
+      <div class="topbar-controls">
+        <label class="pill-switch"><input id="speak-toggle" type="checkbox" checked><span>Voice</span></label>
+        <label class="pill-switch"><input id="web-toggle" type="checkbox" checked><span>Web</span></label>
+      </div>
     </header>
     <section id="setup" class="setup-card">
       <span class="eyebrow">PRIVATE • ON DEVICE</span>
@@ -31,9 +34,20 @@
       <small id="progress-label">Keep Safari open during first download.</small>
     </section>
     <section id="messages" class="messages" aria-live="polite"><article class="message assistant" dir="auto">سلام امین، من زمیس هستم. آماده‌ام کمک کنم.</article></section>
-    <form id="chat-form" class="composer"><textarea id="prompt" rows="1" dir="auto" placeholder="پیامت را بنویس…" disabled required></textarea><button id="send" type="submit" aria-label="Send message" disabled>↑</button></form>
-    <footer><button id="clear-chat" class="text-button" type="button">Clear chat</button><span>Local model • Local memory</span></footer>
+    <form id="chat-form" class="composer">
+      <textarea id="prompt" rows="1" dir="auto" placeholder="پیامت را بنویس یا با میکروفون بگو…" disabled required></textarea>
+      <div class="composer-actions">
+        <select id="speech-language" aria-label="Voice input language">
+          <option value="auto">Auto</option>
+          <option value="fa-IR">فارسی</option>
+          <option value="en-US">English</option>
+        </select>
+        <button id="microphone" class="microphone" type="button" aria-label="Start voice input" disabled>●</button>
+        <button id="send" type="submit" aria-label="Send message" disabled>↑</button>
+      </div>
+    </form>
+    <footer><button id="clear-chat" class="text-button" type="button">Clear chat</button><span id="app-mode">Local model • Local memory</span></footer>
   </main>
-  <script type="module" src="./app.js?v=10"></script>
+  <script type="module" src="./app.js?v=11"></script>
 </body>
 </html>
