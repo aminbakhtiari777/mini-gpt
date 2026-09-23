@@ -1,7 +1,7 @@
 {
-  "name": "Zamis • Private iPad AI",
+  "name": "Zamis • Voice AI",
   "short_name": "Zamis",
-  "description": "A private bilingual AI assistant that runs locally on iPad.",
+  "description": "A bilingual Persian-English voice assistant with local memory and secure cloud speech.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

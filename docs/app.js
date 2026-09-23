@@ -3,8 +3,9 @@ import {
   deleteModelAllInfoInCache,
   hasModelInCache,
 } from "https://esm.run/@mlc-ai/web-llm@0.2.85";
-import { ZamisMemory } from "./zamis-memory.js?v=13";
-import { createVoiceController, detectSpeechLanguage } from "./zamis-voice.js?v=13";
+import { ZamisMemory } from "./zamis-memory.js?v=14";
+import { createVoiceController, detectSpeechLanguage } from "./zamis-voice.js?v=14";
+import { readAttachment, releaseAttachment } from "./zamis-files.js?v=14";
 import {
   SYSTEM_PROMPT,
   cleanModelResponse,
@@ -16,7 +17,7 @@ import {
   isPersonalRecallQuery,
   shouldSearchWeb,
   summarizeExtract,
-} from "./zamis-brain.js?v=13";
+} from "./zamis-brain.js?v=14";
 
 const MODEL_ID = "Qwen2.5-3B-Instruct-q4f16_1-MLC";
 
@@ -30,51 +31,89 @@ const elements = {
   form: document.querySelector("#chat-form"),
   prompt: document.querySelector("#prompt"),
   send: document.querySelector("#send"),
-  microphone: document.querySelector("#microphone"),
+  voiceOrb: document.querySelector("#voice-orb"),
+  voiceSetup: document.querySelector("#voice-setup"),
+  enableVoice: document.querySelector("#enable-voice"),
+  listen: document.querySelector("#listen-toggle"),
+  listenLabel: document.querySelector("#listen-label"),
   speechLanguage: document.querySelector("#speech-language"),
   speak: document.querySelector("#speak-toggle"),
   web: document.querySelector("#web-toggle"),
   clear: document.querySelector("#clear-chat"),
   appMode: document.querySelector("#app-mode"),
+  attach: document.querySelector("#attach"),
+  fileInput: document.querySelector("#file-input"),
+  attachmentChip: document.querySelector("#attachment-chip"),
+  attachmentPreview: document.querySelector("#attachment-preview"),
+  attachmentName: document.querySelector("#attachment-name"),
+  removeAttachment: document.querySelector("#remove-attachment"),
+  openSettings: document.querySelector("#open-settings"),
+  settingsDialog: document.querySelector("#settings-dialog"),
+  apiBase: document.querySelector("#api-base"),
+  deviceKey: document.querySelector("#device-key"),
+  saveSettings: document.querySelector("#save-settings"),
 };
 
 let engine = null;
 let busy = false;
+let modelProgress = 0;
 let history = [];
+let pendingAttachment = null;
 let lastSpeechLanguage = localStorage.getItem("zamis-last-speech-language") || "fa-IR";
 const memory = new ZamisMemory();
 const voice = createVoiceController({
-  onListeningChange: (listening) => {
-    elements.microphone.classList.toggle("listening", listening);
-    elements.microphone.setAttribute("aria-label", listening ? "Stop voice input" : "Start voice input");
-    elements.status.textContent = listening
-      ? (lastSpeechLanguage === "fa-IR" ? "در حال شنیدن…" : "Listening…")
-      : (engine ? "Ready • On-device • Private" : elements.status.textContent);
+  apiBase: () => localStorage.getItem("zamis-api-base") || "",
+  deviceKey: () => localStorage.getItem("zamis-device-key") || "",
+  onStateChange: (state) => {
+    document.body.dataset.voiceState = state;
+    elements.voiceOrb.dataset.state = state;
+    elements.listen.checked = !["off", "error"].includes(state);
+    elements.listenLabel.textContent = state === "armed" || state === "hearing-command" ? "Awake" : "Standby";
+    elements.voiceSetup.hidden = !["off", "error"].includes(state);
   },
-  onError: (message) => {
-    elements.status.textContent = message;
+  onError: (error) => {
+    elements.status.textContent = error?.message || String(error);
   },
   onStatus: (message) => {
-    elements.status.textContent = message;
+    if (!busy) elements.status.textContent = message;
   },
-  onTranscript: (transcript, final, recognitionLanguage) => {
-    if (!transcript) return;
+  onVoiceProgress: (percent) => {
+    elements.enableVoice.textContent = percent < 100 ? `Preparing ${percent}%` : "Active";
+  },
+  onAudioLevel: (level) => {
+    elements.voiceOrb.style.setProperty("--voice-level", String(level));
+  },
+  onWake: (recognitionLanguage) => {
+    lastSpeechLanguage = recognitionLanguage;
+    voice.speak(recognitionLanguage === "fa-IR" ? "بله امین" : "Yes, Amin?");
+  },
+  onTranscript: (transcript, detail) => {
+    if (detail?.source === "cloud") elements.prompt.value = transcript;
+  },
+  onCommand: (transcript, recognitionLanguage) => {
     elements.prompt.value = transcript;
-    if (!final) return;
     lastSpeechLanguage = detectSpeechLanguage(transcript, recognitionLanguage);
     localStorage.setItem("zamis-last-speech-language", lastSpeechLanguage);
-    setTimeout(() => elements.form.requestSubmit(), 80);
+    if (executeLocalVoiceAction(transcript)) return;
+    setTimeout(() => elements.form.requestSubmit(), 500);
   },
 });
 
 elements.speak.checked = localStorage.getItem("zamis-speak-enabled") !== "false";
 elements.speechLanguage.value = localStorage.getItem("zamis-speech-language") || "auto";
 
-function addMessage(text, role, sources = [], save = true) {
+function addMessage(text, role, sources = [], save = true, attachment = null) {
   const article = document.createElement("article");
   article.className = `message ${role}`;
   article.dir = "auto";
   article.textContent = text;
+
+  if (attachment) {
+    const badge = document.createElement("span");
+    badge.className = "message-attachment";
+    badge.textContent = `📎 ${attachment.name}`;
+    article.appendChild(badge);
+  }
 
   if (sources.length) {
     const sourceBox = document.createElement("div");
@@ -109,7 +148,32 @@ function setBusy(value) {
   busy = value;
   elements.prompt.disabled = value || !engine;
   elements.send.disabled = value || !engine;
-  elements.microphone.disabled = value || !engine || !voice.inputSupported;
+  elements.attach.disabled = value || !engine;
+}
+
+function executeLocalVoiceAction(message) {
+  const text = String(message).toLocaleLowerCase().replace(/[،,.!?؟]/gu, " ").replace(/\s+/gu, " ").trim();
+  let reply = "";
+  if (/(چت|گفتگو).*(پاک|حذف)|clear (the )?chat/iu.test(text)) {
+    history = [];
+    void memory.clearConversation();
+    elements.messages.replaceChildren();
+    reply = "گفتگو پاک شد؛ حافظه‌های صریح باقی ماندند.";
+  } else if (/(وب|اینترنت).*(روشن|فعال)|turn (the )?web on/iu.test(text)) {
+    elements.web.checked = true;
+    reply = "جستجوی وب روشن شد.";
+  } else if (/(وب|اینترنت).*(خاموش|غیرفعال)|turn (the )?web off/iu.test(text)) {
+    elements.web.checked = false;
+    reply = "جستجوی وب خاموش شد.";
+  } else if (/تنظیمات.*باز|open settings/iu.test(text)) {
+    elements.openSettings.click();
+    reply = "تنظیمات باز شد.";
+  }
+  if (!reply) return false;
+  elements.prompt.value = "";
+  addMessage(reply, "assistant", [], false);
+  if (elements.speak.checked) voice.speak(reply);
+  return true;
 }
 
 function parseProgress(report) {
@@ -125,6 +189,7 @@ async function loadModel({ automatic = false } = {}) {
     return;
   }
   elements.load.disabled = true;
+  modelProgress = 0;
   const cached = await hasModelInCache(MODEL_ID).catch(() => false);
   elements.status.textContent = cached ? "Loading cached model…" : "Downloading local model…";
   elements.progressLabel.textContent = cached
@@ -134,9 +199,10 @@ async function loadModel({ automatic = false } = {}) {
   try {
     engine = await CreateMLCEngine(MODEL_ID, {
       initProgressCallback: (report) => {
-        const percent = Math.min(100, parseProgress(report));
+        modelProgress = Math.max(modelProgress, Math.min(100, parseProgress(report)));
+        const percent = modelProgress;
         elements.progress.style.width = `${percent}%`;
-        elements.progressLabel.textContent = report.text || `Downloading model… ${percent}%`;
+        elements.progressLabel.textContent = `${cached ? "Loading saved model" : "Downloading model"}… ${percent}%`;
         if (automatic) elements.status.textContent = `Starting Zamis… ${percent}%`;
       },
     });
@@ -260,7 +326,24 @@ function appendSources(container, sources) {
   container.appendChild(sourceBox);
 }
 
-async function answer(message, placeholder) {
+async function cloudReply(message, attachmentContext = "") {
+  const base = (localStorage.getItem("zamis-api-base") || "").replace(/\/$/u, "");
+  if (!base) return "";
+  const deviceKey = localStorage.getItem("zamis-device-key") || "";
+  const response = await fetch(`${base}/api/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(deviceKey ? { "X-Zamis-Key": deviceKey } : {}),
+    },
+    body: JSON.stringify({ message, attachmentContext }),
+  });
+  if (!response.ok) throw new Error(`Cloud assistant is unavailable (${response.status}).`);
+  const data = await response.json();
+  return String(data.text || "").trim();
+}
+
+async function answer(message, placeholder, attachmentContext = "") {
   const saved = extractMemory(message);
   if (saved) await memory.addMemory(saved, { importance: "high" });
 
@@ -300,6 +383,21 @@ async function answer(message, placeholder) {
     return;
   }
 
+  if (localStorage.getItem("zamis-api-base")) {
+    try {
+      const response = await cloudReply(message, attachmentContext);
+      if (response) {
+        placeholder.firstChild.textContent = response;
+        history.push({ role: "assistant", content: response });
+        await memory.appendMessage("assistant", response);
+        return;
+      }
+    } catch (error) {
+      console.warn("Cloud answer failed; using the local model", error);
+      elements.status.textContent = "Cloud unavailable • Using local model";
+    }
+  }
+
   const related = await memory.findRelevant(message, 4);
   const research = await wikipediaSearch(message);
 
@@ -312,6 +410,7 @@ async function answer(message, placeholder) {
   }
 
   const contextParts = [];
+  if (attachmentContext) contextParts.push(attachmentContext);
   if (related.length) contextParts.push(`Relevant saved memories:\n- ${related.join("\n- ")}`);
   if (research.context) contextParts.push(`Current online context. Cite it with [1], [2], or [3]:\n${research.context}`);
 
@@ -349,16 +448,18 @@ async function answer(message, placeholder) {
 
 elements.form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const message = elements.prompt.value.trim();
+  const attachment = pendingAttachment;
+  const message = elements.prompt.value.trim() || (attachment ? "این فایل را بررسی کن." : "");
   if (!message || busy || !engine) return;
-  addMessage(message, "user");
+  addMessage(message, "user", [], true, attachment);
   elements.prompt.value = "";
+  clearAttachment();
   setBusy(true);
   elements.status.textContent = elements.web.checked ? "Thinking locally • Web available" : "Thinking locally • Offline";
   const placeholder = addMessage("…", "assistant", [], false);
   try {
-    await answer(message, placeholder);
-    elements.status.textContent = "Ready • On-device • Private";
+    await answer(message, placeholder, attachment?.context || "");
+    elements.status.textContent = voice.isEnabled() ? "Ready • Say “Zamis” or “زمیس”" : "Ready • On-device • Private";
     if (elements.speak.checked) voice.speak(placeholder.firstChild?.textContent ?? placeholder.textContent);
   } catch (error) {
     console.error(error);
@@ -372,18 +473,61 @@ elements.form.addEventListener("submit", async (event) => {
   }
 });
 
-elements.microphone.addEventListener("click", () => {
-  if (elements.microphone.classList.contains("listening")) {
-    voice.stop();
+async function activateVoice() {
+  if (!voice.inputSupported) {
+    elements.status.textContent = "Voice standby is unavailable in this browser.";
     return;
   }
-  const selected = elements.speechLanguage.value;
-  const language = selected === "auto"
-    ? detectSpeechLanguage(elements.prompt.value, lastSpeechLanguage)
-    : selected;
-  lastSpeechLanguage = language;
-  localStorage.setItem("zamis-last-speech-language", language);
-  voice.start(language);
+  elements.enableVoice.disabled = true;
+  localStorage.setItem("zamis-voice-standby", "true");
+  try {
+    await voice.enableAlwaysOn(elements.speechLanguage.value);
+  } catch (error) {
+    console.error("Could not activate voice standby", error);
+    elements.voiceSetup.hidden = false;
+  } finally {
+    elements.enableVoice.disabled = false;
+  }
+}
+
+elements.enableVoice.addEventListener("click", activateVoice);
+elements.listen.addEventListener("change", async () => {
+  if (elements.listen.checked) await activateVoice();
+  else {
+    localStorage.setItem("zamis-voice-standby", "false");
+    await voice.disableAlwaysOn();
+  }
+});
+
+function clearAttachment() {
+  releaseAttachment(pendingAttachment);
+  pendingAttachment = null;
+  elements.fileInput.value = "";
+  elements.attachmentChip.hidden = true;
+  elements.attachmentPreview.hidden = true;
+  elements.attachmentPreview.removeAttribute("src");
+  elements.attachmentName.textContent = "";
+}
+
+elements.attach.addEventListener("click", () => elements.fileInput.click());
+elements.removeAttachment.addEventListener("click", clearAttachment);
+elements.fileInput.addEventListener("change", async () => {
+  const [file] = elements.fileInput.files;
+  if (!file) return;
+  clearAttachment();
+  elements.status.textContent = "Reading attachment…";
+  try {
+    pendingAttachment = await readAttachment(file);
+    elements.attachmentName.textContent = pendingAttachment.name;
+    if (pendingAttachment.previewUrl) {
+      elements.attachmentPreview.src = pendingAttachment.previewUrl;
+      elements.attachmentPreview.hidden = false;
+    }
+    elements.attachmentChip.hidden = false;
+    elements.status.textContent = "Attachment ready";
+  } catch (error) {
+    elements.status.textContent = error.message;
+  }
 });
 
 elements.speak.addEventListener("change", () => {
@@ -391,8 +535,27 @@ elements.speak.addEventListener("change", () => {
   if (!elements.speak.checked) globalThis.speechSynthesis?.cancel?.();
 });
 
+elements.openSettings.addEventListener("click", () => {
+  elements.apiBase.value = localStorage.getItem("zamis-api-base") || "";
+  elements.deviceKey.value = localStorage.getItem("zamis-device-key") || "";
+  elements.settingsDialog.showModal();
+});
+
+elements.saveSettings.addEventListener("click", () => {
+  const base = elements.apiBase.value.trim().replace(/\/$/u, "");
+  const key = elements.deviceKey.value.trim();
+  if (base) localStorage.setItem("zamis-api-base", base);
+  else localStorage.removeItem("zamis-api-base");
+  if (key) localStorage.setItem("zamis-device-key", key);
+  else localStorage.removeItem("zamis-device-key");
+  elements.status.textContent = base ? "Secure cloud voice configured" : "Local fallback mode";
+});
+
 elements.speechLanguage.addEventListener("change", () => {
   localStorage.setItem("zamis-speech-language", elements.speechLanguage.value);
+  if (voice.isEnabled()) {
+    void voice.disableAlwaysOn().then(activateVoice);
+  }
 });
 
 elements.prompt.addEventListener("keydown", (event) => {
@@ -433,6 +596,10 @@ if (!navigator.gpu) {
     elements.status.textContent = "Compatible • Model not loaded";
     await updateModelButton();
   }
+}
+
+if (localStorage.getItem("zamis-voice-standby") === "true") {
+  void activateVoice();
 }
 
 if ("serviceWorker" in navigator) {

@@ -7,47 +7,68 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Zamis">
-  <title>Zamis • Private iPad AI</title>
+  <title>Zamis • Voice AI</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./apple-touch-icon.png">
-  <link rel="stylesheet" href="./styles.css?v=13">
+  <link rel="stylesheet" href="./styles.css?v=14">
 </head>
 <body>
   <main class="app-shell">
     <header class="topbar">
       <div class="identity">
-        <div class="orb" aria-hidden="true"></div>
-        <div><h1>Zamis</h1><p id="status">Your private AI assistant</p></div>
+        <div id="voice-orb" class="orb" aria-hidden="true"><span></span></div>
+        <div><h1>Zamis</h1><p id="status">Your bilingual voice assistant</p></div>
       </div>
       <div class="topbar-controls">
-        <label class="pill-switch"><input id="speak-toggle" type="checkbox" checked><span>Voice</span></label>
+        <label class="pill-switch standby-switch"><input id="listen-toggle" type="checkbox"><span id="listen-label">Standby</span></label>
+        <label class="pill-switch"><input id="speak-toggle" type="checkbox" checked><span>Reply</span></label>
         <label class="pill-switch"><input id="web-toggle" type="checkbox" checked><span>Web</span></label>
+        <button id="open-settings" class="icon-button" type="button" aria-label="Open settings">⚙</button>
       </div>
     </header>
     <section id="setup" class="setup-card">
       <span class="eyebrow">PRIVATE • ON DEVICE</span>
       <h2>Zamis runs on this iPad</h2>
-      <p>Download the model once and chat privately without a server.</p>
+      <p>The local model is kept on this device. Cloud voice is used only after you wake Zamis.</p>
       <button id="load-model" type="button">Download AI model • ~2.5 GB</button>
       <div class="progress-track"><div id="progress-bar" class="progress-bar"></div></div>
       <small id="progress-label">Keep Safari open during first download.</small>
     </section>
+    <section id="voice-setup" class="voice-setup">
+      <div><strong>Voice standby</strong><small>Say “Zamis” or «زمیس», then speak naturally.</small></div>
+      <button id="enable-voice" type="button">Activate</button>
+    </section>
     <section id="messages" class="messages" aria-live="polite"><article class="message assistant" dir="auto">سلام امین، من زمیس هستم. آماده‌ام کمک کنم.</article></section>
+    <section id="attachment-chip" class="attachment-chip" hidden>
+      <img id="attachment-preview" alt="" hidden>
+      <span id="attachment-name"></span>
+      <button id="remove-attachment" type="button" aria-label="Remove attachment">×</button>
+    </section>
     <form id="chat-form" class="composer">
-      <textarea id="prompt" rows="1" dir="auto" placeholder="پیامت را بنویس یا با میکروفون بگو…" disabled required></textarea>
+      <textarea id="prompt" rows="1" dir="auto" placeholder="متن گفتار اینجا ظاهر می‌شود…" disabled></textarea>
       <div class="composer-actions">
         <select id="speech-language" aria-label="Voice input language">
           <option value="auto">Auto</option>
           <option value="fa-IR">فارسی</option>
           <option value="en-US">English</option>
         </select>
-        <button id="microphone" class="microphone" type="button" aria-label="Start voice input" disabled>●</button>
+        <button id="attach" class="attach" type="button" aria-label="Attach a file" disabled>＋</button>
+        <input id="file-input" type="file" accept="image/*,.pdf,.txt,.md,.csv,.json,.js,.py,.html,.css" hidden>
         <button id="send" type="submit" aria-label="Send message" disabled>↑</button>
       </div>
     </form>
     <footer><button id="clear-chat" class="text-button" type="button">Clear chat</button><span id="app-mode">Local model • Local memory</span></footer>
   </main>
-  <script type="module" src="./app.js?v=13"></script>
+  <dialog id="settings-dialog" class="settings-dialog">
+    <form method="dialog">
+      <div class="dialog-title"><strong>Zamis connection</strong><button value="cancel" aria-label="Close">×</button></div>
+      <label>Secure API URL<input id="api-base" type="url" inputmode="url" placeholder="https://your-zamis-api.vercel.app"></label>
+      <label>Device secret<input id="device-key" type="password" autocomplete="off" placeholder="Your ZAMIS_APP_SECRET"></label>
+      <small>The OpenAI key stays on the server. Never paste it here or commit it to GitHub.</small>
+      <button id="save-settings" class="primary-button" value="default">Save</button>
+    </form>
+  </dialog>
+  <script type="module" src="./app.js?v=14"></script>
 </body>
 </html>

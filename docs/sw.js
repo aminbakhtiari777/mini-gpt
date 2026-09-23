@@ -1,13 +1,14 @@
-const CACHE = "zamis-ipad-v13";
+const CACHE = "zamis-ipad-v14";
 const APP_CACHE_PREFIXES = ["zamis-ipad-", "nava-ipad-"];
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=13",
-  "./app.js?v=13",
-  "./zamis-memory.js?v=13",
-  "./zamis-brain.js?v=13",
-  "./zamis-voice.js?v=13",
+  "./styles.css?v=14",
+  "./app.js?v=14",
+  "./zamis-memory.js?v=14",
+  "./zamis-brain.js?v=14",
+  "./zamis-voice.js?v=14",
+  "./zamis-files.js?v=14",
   "./manifest.webmanifest",
   "./icon.svg",
   "./icon-192.png",
