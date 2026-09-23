@@ -1,6 +1,20 @@
 const PERSIAN_PATTERN = /[\u0600-\u06ff]/u;
 const TRANSFORMERS_URL = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/dist/transformers.min.js";
 const WHISPER_MODEL = "onnx-community/whisper-tiny";
+const MAX_RECORDING_MS = 15000;
+const SILENCE_AFTER_SPEECH_MS = 1200;
+const MIN_SPEECH_MS = 350;
+const SPEECH_LEVEL = 0.018;
+
+let transcriberPromise = null;
+let voiceModelProgress = 0;
+
+export function monotonicVoiceProgress(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return voiceModelProgress;
+  voiceModelProgress = Math.max(voiceModelProgress, Math.min(95, Math.round(numeric)));
+  return voiceModelProgress;
+}
 
 export function detectSpeechLanguage(text, fallback = "fa-IR") {
   const value = String(text).trim();
@@ -37,6 +51,10 @@ export function createVoiceController(options = {}) {
   let recordingStream = null;
   let recordingChunks = [];
   let recordingTimer = null;
+  let recordingMimeType = "audio/mp4";
+  let stopRequested = false;
+  let meterContext = null;
+  let meterFrame = null;
 
   function setListening(value) {
     options.onListeningChange?.(value);
@@ -102,32 +120,99 @@ export function createVoiceController(options = {}) {
     }
   }
 
-  async function transcribeRecording(blob, language) {
-    options.onStatus?.("Loading private voice model…");
-    const { pipeline } = await import(TRANSFORMERS_URL);
-    const transcriber = await pipeline("automatic-speech-recognition", WHISPER_MODEL, {
-      device: "wasm",
-      dtype: { encoder_model: "fp32", decoder_model_merged: "q4" },
-      progress_callback: (progress) => {
-        if (progress.status === "progress" && Number.isFinite(progress.progress)) {
-          options.onStatus?.(`Loading voice model… ${Math.round(progress.progress)}%`);
-        }
-      },
-    });
-    try {
-      options.onStatus?.(language === "fa-IR" ? "در حال تبدیل صدا به متن…" : "Transcribing speech…");
-      const audio = await decodeAudio(blob);
-      const result = await transcriber(audio, {
-        language: language === "fa-IR" ? "fa" : "en",
-        task: "transcribe",
-        chunk_length_s: 20,
+  async function getTranscriber() {
+    if (transcriberPromise) return transcriberPromise;
+    voiceModelProgress = 0;
+    options.onStatus?.("Preparing private voice model… 0%");
+    transcriberPromise = import(TRANSFORMERS_URL)
+      .then(({ pipeline }) => pipeline("automatic-speech-recognition", WHISPER_MODEL, {
+        device: "wasm",
+        dtype: { encoder_model: "fp32", decoder_model_merged: "q4" },
+        progress_callback: (progress) => {
+          if (progress.status !== "progress") return;
+          const percent = monotonicVoiceProgress(progress.progress);
+          options.onStatus?.(`Preparing private voice model… ${percent}%`);
+        },
+      }))
+      .catch((error) => {
+        transcriberPromise = null;
+        throw error;
       });
-      const transcript = String(result?.text ?? "").trim();
-      if (!transcript) throw new Error("No speech was recognized.");
-      options.onTranscript?.(transcript, true, language);
-    } finally {
-      await transcriber.dispose?.();
+    const transcriber = await transcriberPromise;
+    voiceModelProgress = 100;
+    return transcriber;
+  }
+
+  async function transcribeRecording(blob, language) {
+    if (!blob.size) throw new Error("No audio was recorded. Please try again.");
+    const transcriber = await getTranscriber();
+    options.onStatus?.(language === "fa-IR" ? "در حال تبدیل صدا به متن…" : "Transcribing speech…");
+    const audio = await decodeAudio(blob);
+    const result = await transcriber(audio, {
+      language: language === "fa-IR" ? "fa" : "en",
+      task: "transcribe",
+      chunk_length_s: 20,
+    });
+    const transcript = String(result?.text ?? "").trim();
+    if (!transcript) throw new Error("No speech was recognized.");
+    options.onTranscript?.(transcript, true, language);
+  }
+
+  async function stopMeter() {
+    if (meterFrame !== null) root.cancelAnimationFrame?.(meterFrame);
+    meterFrame = null;
+    if (meterContext && meterContext.state !== "closed") await meterContext.close().catch(() => {});
+    meterContext = null;
+  }
+
+  function finishRecording() {
+    if (stopRequested || recorder?.state !== "recording") return;
+    stopRequested = true;
+    clearTimeout(recordingTimer);
+    try {
+      recorder.requestData?.();
+    } catch {
+      // Safari can reject requestData while it is finalizing; stop still emits the final chunk.
     }
+    recorder.stop();
+  }
+
+  function watchForSilence(stream) {
+    const AudioContext = root.AudioContext || root.webkitAudioContext;
+    if (!AudioContext || !root.requestAnimationFrame) return;
+    meterContext = new AudioContext();
+    const source = meterContext.createMediaStreamSource(stream);
+    const analyser = meterContext.createAnalyser();
+    analyser.fftSize = 1024;
+    source.connect(analyser);
+    const samples = new Float32Array(analyser.fftSize);
+    const startedAt = Date.now();
+    let speechStartedAt = 0;
+    let lastSpeechAt = 0;
+
+    const measure = () => {
+      if (recorder?.state !== "recording") return;
+      analyser.getFloatTimeDomainData(samples);
+      let energy = 0;
+      for (const sample of samples) energy += sample * sample;
+      const level = Math.sqrt(energy / samples.length);
+      const now = Date.now();
+      if (level >= SPEECH_LEVEL) {
+        if (!speechStartedAt) speechStartedAt = now;
+        lastSpeechAt = now;
+      }
+      const heardSpeech = speechStartedAt && lastSpeechAt - speechStartedAt >= MIN_SPEECH_MS;
+      if (heardSpeech && now - lastSpeechAt >= SILENCE_AFTER_SPEECH_MS) {
+        finishRecording();
+        return;
+      }
+      if (now - startedAt >= MAX_RECORDING_MS) {
+        finishRecording();
+        return;
+      }
+      meterFrame = root.requestAnimationFrame(measure);
+    };
+    meterFrame = root.requestAnimationFrame(measure);
   }
 
   async function startLocalRecording(language) {
@@ -145,16 +230,19 @@ export function createVoiceController(options = {}) {
         ? new root.MediaRecorder(recordingStream, { mimeType: preferredType })
         : new root.MediaRecorder(recordingStream);
       recordingChunks = [];
+      recordingMimeType = recorder.mimeType || preferredType || "audio/mp4";
+      stopRequested = false;
       recorder.ondataavailable = (event) => {
         if (event.data?.size) recordingChunks.push(event.data);
       };
       recorder.onerror = (event) => options.onError?.(`Audio recording failed: ${event.error?.message || "unknown error"}`);
       recorder.onstop = async () => {
         clearTimeout(recordingTimer);
+        await stopMeter();
         recordingStream?.getTracks().forEach((track) => track.stop());
         recordingStream = null;
         setListening(false);
-        const blob = new Blob(recordingChunks, { type: recorder.mimeType || "audio/mp4" });
+        const blob = new Blob(recordingChunks, { type: recordingMimeType });
         try {
           await transcribeRecording(blob, language);
         } catch (error) {
@@ -162,10 +250,11 @@ export function createVoiceController(options = {}) {
           options.onError?.(`Voice transcription failed: ${error.message}`);
         }
       };
-      recorder.start();
+      recorder.start(250);
       setListening(true);
-      options.onStatus?.(language === "fa-IR" ? "گوش می‌دهم؛ برای پایان دوباره دکمه را بزن…" : "Listening; tap again to finish…");
-      recordingTimer = setTimeout(() => recorder?.state === "recording" && recorder.stop(), 20000);
+      options.onStatus?.(language === "fa-IR" ? "گوش می‌دهم؛ بعد از صحبت خودکار ارسال می‌شود…" : "Listening; it will send after you finish speaking…");
+      watchForSilence(recordingStream);
+      recordingTimer = setTimeout(finishRecording, MAX_RECORDING_MS);
       return true;
     } catch (error) {
       recordingStream?.getTracks().forEach((track) => track.stop());
@@ -187,7 +276,7 @@ export function createVoiceController(options = {}) {
 
   function stop() {
     recognition?.stop?.();
-    if (recorder?.state === "recording") recorder.stop();
+    finishRecording();
   }
 
   function speak(text) {

@@ -3,8 +3,8 @@ import {
   deleteModelAllInfoInCache,
   hasModelInCache,
 } from "https://esm.run/@mlc-ai/web-llm@0.2.85";
-import { ZamisMemory } from "./zamis-memory.js?v=12";
-import { createVoiceController, detectSpeechLanguage } from "./zamis-voice.js?v=12";
+import { ZamisMemory } from "./zamis-memory.js?v=13";
+import { createVoiceController, detectSpeechLanguage } from "./zamis-voice.js?v=13";
 import {
   SYSTEM_PROMPT,
   cleanModelResponse,
@@ -16,7 +16,7 @@ import {
   isPersonalRecallQuery,
   shouldSearchWeb,
   summarizeExtract,
-} from "./zamis-brain.js?v=12";
+} from "./zamis-brain.js?v=13";
 
 const MODEL_ID = "Qwen2.5-3B-Instruct-q4f16_1-MLC";
 
