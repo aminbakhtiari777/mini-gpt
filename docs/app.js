@@ -2,7 +2,7 @@ import { CreateMLCEngine, hasModelInCache } from "https://esm.run/@mlc-ai/web-ll
 import { ZamisMemory } from "./zamis-memory.js?v=3";
 import { SYSTEM_PROMPT, cleanModelResponse, directReply, shouldSearchWeb } from "./zamis-brain.js?v=6";
 
-const MODEL_ID = "Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
+const MODEL_ID = "Qwen2.5-3B-Instruct-q4f16_1-MLC";
 
 const elements = {
   setup: document.querySelector("#setup"),
@@ -109,7 +109,7 @@ async function updateModelButton() {
     const cached = await hasModelInCache(MODEL_ID);
     elements.load.textContent = cached
       ? "Load cached AI model"
-      : "Download AI model • ~1.6 GB";
+      : "Download AI model • ~2.5 GB";
     elements.progressLabel.textContent = cached
       ? "The model is saved on this iPad. Loading it does not download it again."
       : "Keep Safari open during the first download.";
