@@ -1,4 +1,7 @@
-# Zamis voice architecture
+# Zamis Voice Architecture — Archived Design
+
+> [!NOTE]
+> This integration design is preserved as part of the portfolio case study. It requires a separately funded and secured backend and is not currently deployed as a production service.
 
 ## What this version does
 

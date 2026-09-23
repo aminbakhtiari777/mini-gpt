@@ -1,4 +1,7 @@
-# Nava for iPad — No Server Required
+# Zamis iPad Prototype — Archived Setup Notes
+
+> [!CAUTION]
+> This document is retained for engineering review. The iPad build is archived and is not recommended as a daily assistant because browser memory limits and the small local model prevent production-quality reliability.
 
 This version runs the language model directly inside Safari through WebLLM and WebGPU. It does not use Python, FastAPI, Ollama, Tailscale, or a Windows computer after deployment.
 
@@ -9,7 +12,7 @@ This version runs the language model directly inside Safari through WebLLM and W
 - At least 3 GB of free storage
 - Internet access for the first model download
 
-The default model is `Qwen2.5-1.5B-Instruct-q4f16_1-MLC`. Its browser-ready weights require approximately 1.6 GB of GPU memory. Model files are cached locally by the browser.
+The final experiment used `Qwen2.5-3B-Instruct-q4f16_1-MLC`. Its browser package is approximately 2.5 GB and requires several GB of runtime memory. Model files are cached locally by the browser.
 
 ## Deployment with GitHub Pages
 
@@ -25,7 +28,7 @@ The expected URL is:
 https://aminbakhtiari777.github.io/mini-gpt/
 ```
 
-## First run on iPad
+## Historical first-run flow
 
 1. Open the GitHub Pages URL in Safari.
 2. Select **Download AI model** and keep Safari open until it reaches 100%.
@@ -40,3 +43,12 @@ After the model and application files are cached, local chat can work without a 
 - Model weights are stored in Safari-managed browser cache.
 - Clearing Safari website data removes both the model cache and conversation data.
 - iPadOS may evict browser cache under storage pressure, requiring a model re-download.
+
+## Remove the prototype from iPad
+
+1. Touch and hold the Zamis Home Screen icon.
+2. Select **Remove App → Delete App**.
+3. Open **Settings → Apps → Safari → Advanced → Website Data**.
+4. Search for `aminbakhtiari777.github.io` and delete that entry.
+
+This removes the model cache, local conversations, memories, and settings stored for the prototype.

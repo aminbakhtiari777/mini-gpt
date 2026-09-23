@@ -1,7 +1,7 @@
 {
-  "name": "Zamis • Voice AI",
+  "name": "Zamis Local AI Lab",
   "short_name": "Zamis",
-  "description": "A bilingual Persian-English voice assistant with local memory and secure cloud speech.",
+  "description": "An archived bilingual local-first AI engineering prototype and portfolio case study.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

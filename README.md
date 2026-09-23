@@ -1,310 +1,199 @@
-# Mini-GPT Agent
+# Zamis Local AI Lab
 
-A local-first conversational AI project that combines a compact Transformer checkpoint with persistent memory, bounded web research, evidence retrieval, a FastAPI service, and an installable Progressive Web App.
+### Resource-Aware Bilingual Voice Assistant Prototype
+
+[![Status: Archived Prototype](https://img.shields.io/badge/status-archived_prototype-6d5dfc)](#project-status)
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-agent_backend-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![PWA](https://img.shields.io/badge/PWA-iPad_prototype-5A0FC8?logo=pwa&logoColor=white)](docs/)
+[![Languages](https://img.shields.io/badge/languages-Persian_%7C_English-18a999)](#capabilities)
+
+**Zamis Local AI Lab** is an AI-engineering portfolio project exploring how far a bilingual, local-first assistant can go across two constrained environments:
+
+1. a Python/FastAPI agent with memory, retrieval, and optional Ollama inference;
+2. an installable iPad Progressive Web App running a quantized language model through WebGPU.
+
+The project demonstrates model integration, agent routing, explicit memory, bounded web retrieval, voice interaction, PWA engineering, offline fallbacks, and honest handling of resource limits.
 
 > [!IMPORTANT]
-> This repository is an educational AI engineering project, not a replacement for a production-grade large language model. The bundled checkpoint is intentionally treated as low-confidence for factual questions unless relevant evidence is available.
+> This repository is preserved as an **archived engineering prototype and case study**. The iPad edition is not recommended as a daily assistant: browser memory limits and the small on-device model prevent ChatGPT-level comprehension and reliability.
 
-## Key capabilities
+## Project status
 
-- Local text generation using the bundled TensorFlow Mini-GPT checkpoint
-- Natural multilingual chat through an optional local Ollama model
-- Multi-turn conversation context for Ollama sessions
-- Automatic routing between local knowledge, cached knowledge, and live web research
-- Bounded multi-round retrieval with explicit confidence and stopping criteria
-- Wikipedia and general web search providers with graceful network failure handling
-- Extractive evidence selection with source attribution
-- Persistent SQLite conversation history, user-approved memories, and document cache
-- Explicit memory controls: list, create, and delete stored facts
-- Clarifying questions for underspecified prompts
-- Persian and English prompt handling
-- FastAPI backend with validated request schemas
-- Responsive Progressive Web App for Windows, iPhone, and iPad
-- Lightweight mode that runs without TensorFlow
-- Docker and Docker Compose support
-- Automated tests for routing, retrieval, memory, and fallback behavior
+| Area | Status | Result |
+| --- | --- | --- |
+| Python agent architecture | Complete prototype | FastAPI, memory, retrieval, CLI, and Docker paths implemented |
+| iPad PWA | Complete prototype | Installable bilingual UI, WebGPU inference, local storage, voice experiments |
+| Automated behavior suite | Implemented | 23 Python behavior tests plus a JavaScript voice smoke test |
+| Production deployment | Not pursued | Requires stronger compute or a funded secure cloud backend |
+| Repository status | **Archived / portfolio** | Source remains available for review and future continuation |
+
+## What the project demonstrates
+
+- Designing a compact Transformer training and inference pipeline
+- Building an agent around a weak model instead of trusting raw generations
+- Confidence-based routing between local inference, cached knowledge, and web evidence
+- Persistent SQLite memory with explicit create/list/delete controls
+- Multi-turn context for optional Ollama sessions
+- Persian and English conversational handling
+- iPad WebGPU and WebLLM experimentation
+- Speech-to-text, text-to-speech, wake-word, and audio-state prototyping
+- Progressive Web App caching and installability
+- FastAPI request validation and health reporting
+- Docker packaging and lightweight/full dependency profiles
+- Automated tests for memory, routing, retrieval, fallbacks, and voice utilities
 
 ## Architecture
 
 ```mermaid
 flowchart TD
-    U[User message] --> C[Request classifier]
-    C --> M[Local model and memory]
-    M --> Q{Confidence sufficient?}
-    Q -->|Yes| A[Compose answer]
-    Q -->|No, web enabled| S[Iterative search]
-    S --> R[Clean and rank evidence]
-    R --> E{Evidence sufficient?}
-    E -->|No, rounds remain| S
-    E -->|Yes| A
-    E -->|No evidence| F[Offline fallback]
-    F --> A
-    A --> H[Persist conversation]
+    U[User input] --> R[Request router]
+    R --> M[Memory and context]
+    M --> L{Runtime}
+    L -->|Desktop| A[FastAPI agent]
+    L -->|iPad| P[WebGPU PWA]
+    A --> O[Local checkpoint or Ollama]
+    A --> W[Bounded web retrieval]
+    P --> Q[Quantized browser model]
+    O --> X[Answer with confidence]
+    W --> X
+    Q --> X
 ```
 
-### Request lifecycle
+The desktop path is the more complete agent system. The iPad path is a research prototype used to measure the practical limits of browser-based on-device AI.
 
-1. The API validates the incoming message and session identifier.
-2. The agent checks explicit user memories and cached documents for relevant context.
-3. The local model produces an initial answer with a deliberately conservative confidence score.
-4. Factual questions are routed to web retrieval when local confidence is insufficient and web access is enabled.
-5. Search results are cleaned, deduplicated, ranked, and cached in SQLite.
-6. Retrieval stops when the minimum evidence threshold is reached, the configured round limit is exhausted, or the network is unavailable.
-7. The final answer includes its operating mode, confidence score, search-round count, and source links.
+## Capabilities
 
-## Repository layout
+### Agent backend
+
+- Local educational Transformer checkpoint
+- Optional Ollama conversational model
+- Bounded multi-provider search and evidence ranking
+- Explicit long-term memory and recent conversation history
+- Cached knowledge for offline reuse
+- Honest low-confidence fallback behavior
+- Persian/English request handling
+- REST API and CLI interfaces
+
+### iPad research prototype
+
+- Quantized `Qwen2.5-3B-Instruct-q4f16_1-MLC` through WebLLM/WebGPU
+- Local IndexedDB conversation and explicit memory
+- Persian/English chat interface
+- Wake-word and continuous-listening experiments
+- Local/browser speech fallback paths
+- File and PDF text extraction prototype
+- Installable PWA shell and offline asset cache
+
+## Resource profiles
+
+| Profile | Practical requirements | Intended use |
+| --- | --- | --- |
+| Lightweight backend | Python 3.11, about 1–2 GB RAM, under 1 GB disk | API/UI and deterministic routing without neural generation |
+| Full educational backend | Python 3.11, 4–8 GB RAM, about 3 GB free disk | TensorFlow checkpoint, memory, retrieval, and tests |
+| Recommended local backend | 8–16 GB RAM, 8–12 GB free disk, Ollama | More natural local conversation using a quantized instruction model |
+| iPad WebGPU prototype | Modern WebGPU-capable iPad, roughly 2.5 GB model download, several GB runtime memory | Demonstration only; sensitive to Safari memory pressure |
+| Production-quality assistant | Authenticated HTTPS backend, API/model budget, monitoring, rate limits, secure secrets | Strong reasoning, reliable multilingual speech, and live tools |
+
+Resource numbers are operational estimates and vary by model build, browser, OS, context length, and inference engine.
+
+## Why the iPad edition was archived
+
+The prototype successfully proved that a bilingual model can run directly inside Safari, but it also exposed the real engineering boundary:
+
+- a 3B-class quantized model fits more easily but produces weak reasoning and inconsistent Persian;
+- larger local models increase memory pressure and can be evicted or terminated by Safari;
+- browser caches may be removed by the operating system;
+- initializing model weights is still required after reopening, even when no re-download occurs;
+- Siri-like background listening is not available to an ordinary PWA;
+- high-quality speech, web tools, and reasoning require a secure backend and ongoing compute budget.
+
+This is a useful project outcome, not a hidden failure: the implementation established which components can remain local and which require stronger infrastructure.
+
+## Repository map
 
 ```text
 mini-gpt/
-├── agent/                 Agent orchestration, retrieval, memory, and personality
-├── checkpoints/           Bundled TensorFlow checkpoint
-├── data/                  Original training text
+├── agent/                 Orchestration, retrieval, memory, and personality
+├── api/                   Optional serverless chat and transcription prototypes
+├── checkpoints/           Educational TensorFlow checkpoint
+├── data/                  Training corpus
+├── docs/                  Archived iPad PWA and portfolio landing page
 ├── outputs/               Serialized tokenizer
-├── scripts/               Application entry points
-├── src/                   Transformer, tokenizer, training, and inference code
-├── tests/                 Automated behavior tests
-├── web/                   Progressive Web App assets
+├── scripts/               Runtime and dependency-free test runner
+├── src/                   Transformer training and inference code
+├── tests/                 Python behavior tests and voice smoke test
+├── web/                   FastAPI-served web client
 ├── api.py                 FastAPI application
-├── Dockerfile             Container image definition
-├── docker-compose.yml     Local container orchestration
-├── start_windows.bat      Windows launcher
-└── requirements*.txt      Full, lightweight, and development dependencies
+├── Dockerfile             Container definition
+└── docker-compose.yml     Local orchestration
 ```
 
-## Requirements
+## Reproducing the tests
 
-- Python 3.11 recommended
-- Windows 10/11, Linux, or macOS
-- Approximately 3 GB of free disk space for the full TensorFlow environment
-- Internet access only when live research is enabled
-
-## Windows quick start
-
-Clone the production branch:
-
-```powershell
-git clone --branch mini-gpt-agent-v1 --single-branch https://github.com/aminbakhtiari777/mini-gpt.git
-cd mini-gpt
-```
-
-Create and activate a virtual environment:
-
-```powershell
-py -3.11 -m venv .venv
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\.venv\Scripts\Activate.ps1
-```
-
-Install the full runtime and start the application:
-
-```powershell
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-python scripts\run.py
-```
-
-Open [http://localhost:8000](http://localhost:8000).
-
-After the initial installation, double-click `start_windows.bat` to start the application. Keep the terminal window open while the service is in use.
-
-## Lightweight installation
-
-The lightweight environment runs the API, PWA, memory, and deterministic fallback without loading the TensorFlow checkpoint:
-
-```powershell
-pip install -r requirements-lite.txt
-python scripts\run.py
-```
-
-This mode is useful for UI development and low-resource environments. It does not provide neural text generation.
-
-## Recommended Ollama setup
-
-Ollama provides the primary conversational engine when it is installed and the configured model is available. The educational TensorFlow checkpoint remains an automatic fallback.
-
-1. Install Ollama for Windows from [ollama.com/download](https://ollama.com/download).
-2. Open a new PowerShell window.
-3. Download the recommended multilingual model:
-
-```powershell
-ollama pull qwen3:1.7b
-```
-
-4. Verify the model independently:
-
-```powershell
-ollama run qwen3:1.7b
-```
-
-5. Enter `/bye` to exit the model session, then start Mini-GPT:
-
-```powershell
-cd C:\Users\metaking\mini-gpt
-python scripts\run.py
-```
-
-The application connects to Ollama at `http://127.0.0.1:11434` by default. Ollama does not need to be exposed to the iPhone or iPad: the FastAPI server communicates with it locally, while Apple devices continue to use the existing Mini-GPT URL over Tailscale.
-
-Check the active engine at [http://localhost:8000/api/health](http://localhost:8000/api/health). A successful Ollama configuration reports:
-
-```json
-{
-  "status": "ok",
-  "agent_ready": true,
-  "engine": "OllamaEngine",
-  "model": "qwen3:1.7b"
-}
-```
-
-## Access from iPhone or iPad
-
-The Apple device and the Windows computer must be connected to the same trusted Wi-Fi network.
-
-1. Start Mini-GPT on Windows.
-2. Run `ipconfig` and locate the Wi-Fi adapter's IPv4 address.
-3. Open `http://<WINDOWS-IP>:8000` in Safari, for example `http://192.168.1.15:8000`.
-4. Select **Share → Add to Home Screen**.
-
-The PWA provides an app-like interface, but inference still runs on the Windows host. The host must remain powered on, connected to the network, and awake.
-
-## Serverless iPad edition
-
-The repository also includes a separate iPad-native web edition in `docs/`. It runs a browser-ready Qwen model directly in Safari using WebLLM and WebGPU, stores chat data locally, supports Persian and English, and does not require the Windows server after deployment.
-
-See [`IPAD_SETUP.md`](IPAD_SETUP.md) for GitHub Pages deployment and first-run instructions.
-
-## Docker
+The dependency-free runner executes the 23 Python behavior tests without requiring pytest:
 
 ```bash
-docker compose up --build
+python scripts/run_test_suite.py
 ```
 
-The SQLite database is stored in a named Docker volume, so memories survive container replacement.
-
-## CLI mode
+The browser voice utility smoke test runs with Node.js:
 
 ```bash
-python -m agent.cli
+node tests/voice-smoke.mjs
 ```
 
-Available commands:
-
-- `/online` — enable web research
-- `/offline` — disable web research
-- `/quit` — exit the session
-
-## Configuration
-
-The application is configured through environment variables.
-
-| Variable | Default | Purpose |
-| --- | ---: | --- |
-| `MINIGPT_DB_PATH` | `runtime/minigpt.db` | SQLite database location |
-| `MINIGPT_MAX_SEARCH_ROUNDS` | `3` | Maximum retrieval rounds per request |
-| `MINIGPT_RESULTS_PER_ROUND` | `4` | Maximum search results per round |
-| `MINIGPT_MIN_SOURCES` | `2` | Minimum evidence sources before early stopping |
-| `MINIGPT_MIN_CONFIDENCE` | `0.55` | Confidence threshold for local or retrieved answers |
-| `MINIGPT_REQUEST_TIMEOUT` | `5` | Network timeout in seconds |
-| `MINIGPT_OFFLINE` | `0` | Set to `1` to disable web research globally |
-| `MINIGPT_REMEMBER` | `0` | Set to `1` to persist every user message as memory |
-| `MINIGPT_OLLAMA_ENABLED` | `1` | Use Ollama when its server and configured model are available |
-| `MINIGPT_OLLAMA_URL` | `http://127.0.0.1:11434` | Local Ollama server URL |
-| `MINIGPT_OLLAMA_MODEL` | `qwen3:1.7b` | Ollama chat model name |
-| `MINIGPT_OLLAMA_TIMEOUT` | `120` | Maximum generation time in seconds |
-| `MINIGPT_OLLAMA_CONTEXT` | `4096` | Ollama context window used by Mini-GPT |
-
-Example PowerShell configuration:
-
-```powershell
-$env:MINIGPT_OFFLINE="1"
-$env:MINIGPT_MAX_SEARCH_ROUNDS="2"
-python scripts\run.py
-```
-
-## API
-
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `GET` | `/api/health` | Service readiness check |
-| `POST` | `/api/chat` | Submit a chat request |
-| `GET` | `/api/memories` | List explicit long-term memories |
-| `POST` | `/api/memories` | Store a memory manually |
-| `DELETE` | `/api/memories/{id}` | Delete a memory |
-
-Example chat request:
-
-```bash
-curl -X POST http://localhost:8000/api/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message":"What is retrieval-augmented generation?","session_id":"demo","allow_web":true}'
-```
-
-Example response shape:
-
-```json
-{
-  "answer": "...",
-  "mode": "web",
-  "confidence": 0.78,
-  "search_rounds": 2,
-  "needs_clarification": false,
-  "learned": false,
-  "sources": [
-    {
-      "title": "Source title",
-      "url": "https://example.com",
-      "provider": "web"
-    }
-  ]
-}
-```
-
-## Memory and privacy
-
-- Conversation history, explicit memories, and cached documents are stored locally in SQLite.
-- Long-term personal memory is opt-in by default.
-- The database is stored as plaintext and should be protected using normal operating-system access controls.
-- Use `GET /api/memories` to audit stored facts and `DELETE /api/memories/{id}` to remove them.
-- Live research sends the search query to the configured external search providers.
-
-## Testing
-
-Install development dependencies and run the test suite:
+The standard development route remains available:
 
 ```bash
 pip install -r requirements-dev.txt
 pytest -q
 ```
 
-The current suite covers text cleaning, evidence ranking, persistent memory, explicit memory extraction, local routing, web-search routing, bounded retries, network fallback, clarification behavior, multi-provider retrieval, and offline cached knowledge.
+## Optional desktop run
 
-## Security considerations
+```bash
+git clone --branch mini-gpt-agent-v1 --single-branch https://github.com/aminbakhtiari777/mini-gpt.git
+cd mini-gpt
+python -m venv .venv
+pip install -r requirements-lite.txt
+python scripts/run.py
+```
 
-- The development server has no authentication layer.
-- Do not expose port `8000` directly to the public internet.
-- Restrict access to a trusted private network or place the service behind an authenticated HTTPS reverse proxy.
-- Web content is untrusted input. The retrieval layer strips HTML and limits retained content, but production deployments should add stricter URL validation, allowlists, rate limiting, and observability.
-- Keep dependencies patched and review container images before public deployment.
+Open `http://localhost:8000`. The full TensorFlow environment uses `requirements.txt`; Ollama can be enabled through the variables documented in [`PROJECT_REPORT.md`](PROJECT_REPORT.md).
 
-## Model limitations
+## Remove the iPad prototype completely
 
-The bundled checkpoint contains **5,216,912 parameters** and was trained on a small story-oriented corpus. It is suitable for demonstrating Transformer inference and agent orchestration, but it does not contain broad or reliable world knowledge.
+1. Touch and hold the **Zamis** Home Screen icon.
+2. Select **Remove App → Delete App**.
+3. Open **Settings → Apps → Safari → Advanced → Website Data**.
+4. Search for `aminbakhtiari777.github.io` and delete that entry.
 
-For that reason:
+Deleting the website entry removes the downloaded model, local conversations, memories, and PWA settings from that iPad.
 
-- Raw checkpoint output is capped at low factual confidence.
-- High-confidence greetings are deterministic.
-- Low-confidence factual questions trigger retrieval when web access is available.
-- The agent reports insufficient knowledge instead of presenting unsupported local output as fact.
-- Retrieved answers are extractive and may require additional synthesis for advanced use cases.
-- Emotional behavior is a transparent software persona, not genuine emotion or consciousness.
+## Security notes
 
-## Production roadmap
+- Never place an API key in browser JavaScript or commit it to Git.
+- The development FastAPI server is not intended for direct public exposure.
+- Production use requires authentication, HTTPS, rate limiting, logging, and secret management.
+- Retrieved web content must be treated as untrusted input.
+- Personal memory should remain explicit, inspectable, and deletable.
 
-- Replace the educational checkpoint with a stronger quantized instruction model
-- Add a vector index and embedding-based retrieval
-- Add authenticated multi-user sessions
-- Add HTTPS termination and request rate limiting
-- Add structured logging, tracing, and retrieval evaluation
-- Add background document ingestion and memory review workflows
-- Export a mobile-optimized model for native on-device inference
+## Future continuation requirements
+
+If sufficient resources become available, the next version should use:
+
+- a secure hosted reasoning model or a workstation-class local model;
+- realtime multilingual transcription and natural speech synthesis;
+- a vector database for semantic memory;
+- authenticated user/device sessions;
+- source-grounded web tools;
+- structured evaluation for Persian comprehension, latency, and hallucination rate;
+- a native iPad application if background audio is a requirement.
+
+The implementation history and detailed engineering findings are documented in [`PROJECT_REPORT.md`](PROJECT_REPORT.md).
+
+## Author
+
+**Amin Bakhtiari**<br>
+AI engineering learner and project creator — architecture, implementation direction, testing, and product iteration.
