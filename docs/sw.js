@@ -1,13 +1,13 @@
-const CACHE = "zamis-ipad-v11";
+const CACHE = "zamis-ipad-v12";
 const APP_CACHE_PREFIXES = ["zamis-ipad-", "nava-ipad-"];
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=11",
-  "./app.js?v=11",
-  "./zamis-memory.js?v=11",
-  "./zamis-brain.js?v=11",
-  "./zamis-voice.js?v=11",
+  "./styles.css?v=12",
+  "./app.js?v=12",
+  "./zamis-memory.js?v=12",
+  "./zamis-brain.js?v=12",
+  "./zamis-voice.js?v=12",
   "./manifest.webmanifest",
   "./icon.svg",
   "./icon-192.png",
@@ -33,6 +33,11 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+  const requestURL = new URL(event.request.url);
+  if (requestURL.origin !== self.location.origin) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
   event.respondWith(
     fetch(event.request)
       .then((response) => {

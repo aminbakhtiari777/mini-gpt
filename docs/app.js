@@ -3,8 +3,8 @@ import {
   deleteModelAllInfoInCache,
   hasModelInCache,
 } from "https://esm.run/@mlc-ai/web-llm@0.2.85";
-import { ZamisMemory } from "./zamis-memory.js?v=11";
-import { createVoiceController, detectSpeechLanguage } from "./zamis-voice.js?v=11";
+import { ZamisMemory } from "./zamis-memory.js?v=12";
+import { createVoiceController, detectSpeechLanguage } from "./zamis-voice.js?v=12";
 import {
   SYSTEM_PROMPT,
   cleanModelResponse,
@@ -16,7 +16,7 @@ import {
   isPersonalRecallQuery,
   shouldSearchWeb,
   summarizeExtract,
-} from "./zamis-brain.js?v=11";
+} from "./zamis-brain.js?v=12";
 
 const MODEL_ID = "Qwen2.5-3B-Instruct-q4f16_1-MLC";
 
@@ -52,6 +52,9 @@ const voice = createVoiceController({
       : (engine ? "Ready • On-device • Private" : elements.status.textContent);
   },
   onError: (message) => {
+    elements.status.textContent = message;
+  },
+  onStatus: (message) => {
     elements.status.textContent = message;
   },
   onTranscript: (transcript, final, recognitionLanguage) => {
@@ -106,7 +109,7 @@ function setBusy(value) {
   busy = value;
   elements.prompt.disabled = value || !engine;
   elements.send.disabled = value || !engine;
-  elements.microphone.disabled = value || !engine || !voice.recognitionSupported;
+  elements.microphone.disabled = value || !engine || !voice.inputSupported;
 }
 
 function parseProgress(report) {
