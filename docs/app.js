@@ -1,12 +1,8 @@
 import { CreateMLCEngine, hasModelInCache } from "https://esm.run/@mlc-ai/web-llm@0.2.85";
 import { ZamisMemory } from "./zamis-memory.js?v=3";
+import { SYSTEM_PROMPT, cleanModelResponse, directReply, shouldSearchWeb } from "./zamis-brain.js?v=6";
 
 const MODEL_ID = "Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
-const SYSTEM_PROMPT = `You are Zamis (زمیس), Amin's private on-device AI assistant.
-Reply in the same language as the user. Write natural Persian for Persian messages and natural English for English messages.
-Be warm, concise, honest, and useful. Ask a short clarifying question when necessary.
-Use saved memories and web context only when relevant. Never invent sources or claim consciousness.
-Do not reveal chain-of-thought. Give the final answer directly.`;
 
 const elements = {
   setup: document.querySelector("#setup"),
@@ -139,12 +135,8 @@ function looksPersian(text) {
   return /[\u0600-\u06ff]/.test(text);
 }
 
-function isQuestion(text) {
-  return /[?؟]/.test(text) || /^(what|who|when|where|why|how|چی|چه|کی|کجا|چرا|چطور)\b/iu.test(text.trim());
-}
-
 async function wikipediaSearch(query) {
-  if (!navigator.onLine || !elements.web.checked || !isQuestion(query)) return { context: "", sources: [] };
+  if (!navigator.onLine || !elements.web.checked || !shouldSearchWeb(query)) return { context: "", sources: [] };
   const language = looksPersian(query) ? "fa" : "en";
   const url = new URL(`https://${language}.wikipedia.org/w/api.php`);
   url.search = new URLSearchParams({
@@ -178,6 +170,14 @@ async function answer(message, placeholder) {
   const saved = extractMemory(message);
   if (saved) await memory.addMemory(saved, { importance: "high" });
 
+  const immediate = directReply(message);
+  if (immediate) {
+    placeholder.firstChild.textContent = immediate;
+    history.push({ role: "assistant", content: immediate });
+    await memory.appendMessage("assistant", immediate);
+    return;
+  }
+
   const related = await memory.findRelevant(message, 4);
   const research = await wikipediaSearch(message);
   const contextParts = [];
@@ -195,9 +195,10 @@ async function answer(message, placeholder) {
 
   const stream = await engine.chat.completions.create({
     messages,
-    temperature: 0.55,
-    top_p: 0.9,
-    max_tokens: 320,
+    temperature: 0.2,
+    top_p: 0.8,
+    repetition_penalty: 1.12,
+    max_tokens: 240,
     stream: true,
   });
 
@@ -207,6 +208,8 @@ async function answer(message, placeholder) {
     placeholder.firstChild.textContent = text;
     elements.messages.scrollTop = elements.messages.scrollHeight;
   }
+  text = cleanModelResponse(text, message);
+  placeholder.firstChild.textContent = text;
   history.push({ role: "assistant", content: text });
   await memory.appendMessage("assistant", text);
 
