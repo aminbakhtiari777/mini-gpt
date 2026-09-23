@@ -26,6 +26,41 @@ export function isEncyclopedicQuery(message) {
   return /(کجاست|کیست|چیست|چیه|درباره(?:‌ی| ی)?|راجع به|توضیح بده|معرفی کن|چه کسی|چه کشوری|where is|who is|what is|tell me about|explain)/iu.test(text);
 }
 
+export function isDateQuery(message) {
+  const text = normalized(message);
+  return /^(?:امروز|الان) (?:چندم(?: ماه)?(?:ه| است)?|چه تاریخی(?:ه| است)?|تاریخ چنده)|^تاریخ امروز (?:چنده|چیست)$/u.test(text);
+}
+
+export function currentDateReply(date = new Date()) {
+  const persianParts = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).formatToParts(date);
+  const gregorianParts = new Intl.DateTimeFormat("fa-IR-u-ca-gregory", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).formatToParts(date);
+  const part = (parts, type) => parts.find((item) => item.type === type)?.value ?? "";
+  const persian = `${part(persianParts, "weekday")} ${part(persianParts, "day")} ${part(persianParts, "month")} ${part(persianParts, "year")}`;
+  const gregorian = `${part(gregorianParts, "day")} ${part(gregorianParts, "month")} ${part(gregorianParts, "year")}`;
+  return `امروز ${persian} است؛ برابر با ${gregorian} میلادی.`;
+}
+
+export function correctionReply(message) {
+  const text = normalized(message);
+  const invented = text.match(/^چرا گفتی\s+(.+)$/u);
+  if (invented) {
+    return `حق با توست؛ اشاره به «${invented[1]}» اشتباه و بی‌دلیل بود. نباید چیزی را که از تو نمی‌دانم حدس بزنم.`;
+  }
+  if (/^(?:این|جوابت|پاسخت) (?:اشتباه|غلط)(?:ه| است)?$/u.test(text)) {
+    return "حق با توست. آن پاسخ اشتباه بود؛ لطفاً همان سؤال را دوباره بپرس تا پاسخ دقیق بدهم.";
+  }
+  return "";
+}
+
 export function summarizeExtract(extract, limit = 700) {
   const clean = String(extract).replace(/\s+/gu, " ").trim();
   if (!clean) return "";

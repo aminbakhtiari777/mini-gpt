@@ -3,16 +3,19 @@ import {
   deleteModelAllInfoInCache,
   hasModelInCache,
 } from "https://esm.run/@mlc-ai/web-llm@0.2.85";
-import { ZamisMemory } from "./zamis-memory.js?v=9";
+import { ZamisMemory } from "./zamis-memory.js?v=10";
 import {
   SYSTEM_PROMPT,
   cleanModelResponse,
+  correctionReply,
+  currentDateReply,
   directReply,
+  isDateQuery,
   isEncyclopedicQuery,
   isPersonalRecallQuery,
   shouldSearchWeb,
   summarizeExtract,
-} from "./zamis-brain.js?v=9";
+} from "./zamis-brain.js?v=10";
 
 const MODEL_ID = "Qwen2.5-3B-Instruct-q4f16_1-MLC";
 
@@ -235,6 +238,22 @@ async function answer(message, placeholder) {
     placeholder.firstChild.textContent = personalReply;
     history.push({ role: "assistant", content: personalReply });
     await memory.appendMessage("assistant", personalReply);
+    return;
+  }
+
+  if (isDateQuery(message) || /تاریخ.*(?:اشتباه|غلط)/u.test(message)) {
+    const dateReply = currentDateReply();
+    placeholder.firstChild.textContent = dateReply;
+    history.push({ role: "assistant", content: dateReply });
+    await memory.appendMessage("assistant", dateReply);
+    return;
+  }
+
+  const correction = correctionReply(message);
+  if (correction) {
+    placeholder.firstChild.textContent = correction;
+    history.push({ role: "assistant", content: correction });
+    await memory.appendMessage("assistant", correction);
     return;
   }
 
