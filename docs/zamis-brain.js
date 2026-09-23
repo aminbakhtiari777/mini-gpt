@@ -5,6 +5,7 @@ export const SYSTEM_PROMPT = `تو زمیس (Zamis)، دستیار هوش مصن
 پاسخ‌های روزمره را در یک یا دو جمله کوتاه بده. برای پرسش فنی فقط به اندازه لازم توضیح بده.
 از خاطرات ذخیره‌شده فقط وقتی مرتبط هستند استفاده کن. اطلاعات یا منبع جعلی نساز.
 اگر چیزی را نمی‌دانی، صادقانه بگو یا یک سؤال کوتاه بپرس.
+با ادعای نادرست کاربر موافقت نکن. واقعیت‌های پایه را کوتاه و قطعی اصلاح کن.
 ادعای خودآگاهی نکن و زنجیره افکار داخلی را نمایش نده.`;
 
 function normalized(text) {
@@ -13,6 +14,24 @@ function normalized(text) {
     .trim()
     .replace(/[!؟?.،]+$/gu, "")
     .replace(/\s+/gu, " ");
+}
+
+export function isPersonalRecallQuery(message) {
+  const text = normalized(message);
+  return /^(?:(منو|مرا) می[‌ ]?شناسی|می[‌ ]?شناسی (?:منو|مرا)|درباره من چی می[‌ ]?دونی|از من چی یادت(?:ه| هست)|اسم من (?:چیه|چیست))$/u.test(text);
+}
+
+export function isEncyclopedicQuery(message) {
+  const text = normalized(message);
+  return /(کجاست|کیست|چیست|چیه|درباره(?:‌ی| ی)?|راجع به|توضیح بده|معرفی کن|چه کسی|چه کشوری|where is|who is|what is|tell me about|explain)/iu.test(text);
+}
+
+export function summarizeExtract(extract, limit = 700) {
+  const clean = String(extract).replace(/\s+/gu, " ").trim();
+  if (!clean) return "";
+  const summary = clean.split(/(?<=[.!؟])\s+/u).slice(0, 3).join(" ");
+  if (summary.length <= limit) return summary;
+  return `${summary.slice(0, limit).replace(/\s+\S*$/u, "")}…`;
 }
 
 export function directReply(message) {
@@ -36,13 +55,19 @@ export function directReply(message) {
   if (/^(هوا خوبه|هوا خوب است)$/u.test(text)) {
     return "آره، هوای خوب واقعاً حال آدم را بهتر می‌کند.";
   }
+  if (/^(ایران کجاست|ایران کجای دنیاست)$/u.test(text)) {
+    return "ایران کشوری در غرب آسیاست؛ از شمال به دریای خزر و از جنوب به خلیج فارس و دریای عمان می‌رسد.";
+  }
+  if (/^(کره زمین گرد است|زمین گرد است)$/u.test(text)) {
+    return "بله. زمین تقریباً کروی است، اما به‌دلیل چرخش، در قطب‌ها کمی تخت‌تر و در استوا برآمده‌تر است.";
+  }
   return "";
 }
 
 export function shouldSearchWeb(message) {
   const text = normalized(message);
   const currentInfo = /(سرچ|جستجو|اینترنت|خبر|جدیدترین|آخرین|امروز|فردا|قیمت|آب[‌ ]?وهوا|هوا.{0,10}(چطور|چگونه)|search|latest|today|tomorrow|price|weather)/iu;
-  return currentInfo.test(text);
+  return currentInfo.test(text) || isEncyclopedicQuery(text);
 }
 
 export function cleanModelResponse(response, userMessage = "") {

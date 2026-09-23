@@ -3,8 +3,16 @@ import {
   deleteModelAllInfoInCache,
   hasModelInCache,
 } from "https://esm.run/@mlc-ai/web-llm@0.2.85";
-import { ZamisMemory } from "./zamis-memory.js?v=3";
-import { SYSTEM_PROMPT, cleanModelResponse, directReply, shouldSearchWeb } from "./zamis-brain.js?v=6";
+import { ZamisMemory } from "./zamis-memory.js?v=9";
+import {
+  SYSTEM_PROMPT,
+  cleanModelResponse,
+  directReply,
+  isEncyclopedicQuery,
+  isPersonalRecallQuery,
+  shouldSearchWeb,
+  summarizeExtract,
+} from "./zamis-brain.js?v=9";
 
 const MODEL_ID = "Qwen2.5-3B-Instruct-q4f16_1-MLC";
 
@@ -160,13 +168,19 @@ function looksPersian(text) {
 }
 
 async function wikipediaSearch(query) {
-  if (!navigator.onLine || !elements.web.checked || !shouldSearchWeb(query)) return { context: "", sources: [] };
+  if (!navigator.onLine || !elements.web.checked || !shouldSearchWeb(query)) {
+    return { context: "", sources: [], summary: "" };
+  }
   const language = looksPersian(query) ? "fa" : "en";
+  const searchQuery = String(query)
+    .replace(/^(?:راجع به|درباره(?:‌ی| ی)?)\s*/u, "")
+    .replace(/\s*(?:چیست|چیه|کیست|کجاست|را توضیح بده|توضیح بده|بگو)$/u, "")
+    .trim() || query;
   const url = new URL(`https://${language}.wikipedia.org/w/api.php`);
   url.search = new URLSearchParams({
     action: "query",
     generator: "search",
-    gsrsearch: query,
+    gsrsearch: searchQuery,
     gsrlimit: "3",
     prop: "extracts|info",
     exintro: "1",
@@ -179,20 +193,50 @@ async function wikipediaSearch(query) {
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(7000) });
     const data = await response.json();
-    const pages = Object.values(data.query?.pages ?? {}).slice(0, 3);
+    const pages = Object.values(data.query?.pages ?? {})
+      .sort((a, b) => (a.index ?? Number.MAX_SAFE_INTEGER) - (b.index ?? Number.MAX_SAFE_INTEGER))
+      .slice(0, 3);
     return {
       context: pages.map((page, index) => `[${index + 1}] ${page.title}\n${String(page.extract ?? "").slice(0, 1200)}`).join("\n\n"),
       sources: pages.map((page) => ({ title: page.title, url: page.fullurl })),
+      summary: summarizeExtract(pages[0]?.extract ?? ""),
     };
   } catch (error) {
     console.warn("Online research failed", error);
-    return { context: "", sources: [] };
+    return { context: "", sources: [], summary: "" };
   }
+}
+
+function appendSources(container, sources) {
+  if (!sources.length) return;
+  const sourceBox = document.createElement("div");
+  sourceBox.className = "sources";
+  sources.forEach((source, index) => {
+    const link = document.createElement("a");
+    link.href = source.url;
+    link.target = "_blank";
+    link.rel = "noreferrer";
+    link.textContent = `[${index + 1}] ${source.title}`;
+    sourceBox.appendChild(link);
+  });
+  container.appendChild(sourceBox);
 }
 
 async function answer(message, placeholder) {
   const saved = extractMemory(message);
   if (saved) await memory.addMemory(saved, { importance: "high" });
+
+  if (isPersonalRecallQuery(message)) {
+    const savedFacts = await memory.listMemories(5);
+    const details = savedFacts.length
+      ? ` چیزهایی که خواسته‌ای نگه دارم: ${savedFacts.join("؛ ")}.`
+      : " هنوز اطلاعات شخصی دیگری از تو ذخیره نکرده‌ام.";
+    const personalReply = `آره امین؛ می‌دانم تو مالک و توسعه‌دهندهٔ زمیس هستی.${details}`;
+    placeholder.firstChild.textContent = personalReply;
+    history.push({ role: "assistant", content: personalReply });
+    await memory.appendMessage("assistant", personalReply);
+    return;
+  }
 
   const immediate = directReply(message);
   if (immediate) {
@@ -204,6 +248,15 @@ async function answer(message, placeholder) {
 
   const related = await memory.findRelevant(message, 4);
   const research = await wikipediaSearch(message);
+
+  if (research.summary && isEncyclopedicQuery(message)) {
+    placeholder.firstChild.textContent = research.summary;
+    history.push({ role: "assistant", content: research.summary });
+    await memory.appendMessage("assistant", research.summary);
+    appendSources(placeholder, research.sources.slice(0, 1));
+    return;
+  }
+
   const contextParts = [];
   if (related.length) contextParts.push(`Relevant saved memories:\n- ${related.join("\n- ")}`);
   if (research.context) contextParts.push(`Current online context. Cite it with [1], [2], or [3]:\n${research.context}`);
@@ -219,10 +272,10 @@ async function answer(message, placeholder) {
 
   const stream = await engine.chat.completions.create({
     messages,
-    temperature: 0.2,
-    top_p: 0.8,
-    repetition_penalty: 1.12,
-    max_tokens: 240,
+    temperature: 0.1,
+    top_p: 0.9,
+    repetition_penalty: 1.03,
+    max_tokens: 180,
     stream: true,
   });
 
@@ -237,19 +290,7 @@ async function answer(message, placeholder) {
   history.push({ role: "assistant", content: text });
   await memory.appendMessage("assistant", text);
 
-  if (research.sources.length) {
-    const sourceBox = document.createElement("div");
-    sourceBox.className = "sources";
-    research.sources.forEach((source, index) => {
-      const link = document.createElement("a");
-      link.href = source.url;
-      link.target = "_blank";
-      link.rel = "noreferrer";
-      link.textContent = `[${index + 1}] ${source.title}`;
-      sourceBox.appendChild(link);
-    });
-    placeholder.appendChild(sourceBox);
-  }
+  appendSources(placeholder, research.sources);
 }
 
 elements.form.addEventListener("submit", async (event) => {

@@ -127,6 +127,19 @@ export class ZamisMemory {
       .map((record) => record.content);
   }
 
+  async listMemories(limit = 6) {
+    const { store } = this.store("memories");
+    const records = await requestResult(store.getAll());
+    return records
+      .sort((a, b) => {
+        const importance = { high: 2, normal: 1 };
+        return (importance[b.importance] ?? 0) - (importance[a.importance] ?? 0)
+          || String(b.updatedAt).localeCompare(String(a.updatedAt));
+      })
+      .slice(0, limit)
+      .map((record) => record.content);
+  }
+
   async appendMessage(role, content, createdAt = new Date().toISOString()) {
     if (!['user', 'assistant'].includes(role) || !String(content).trim()) return null;
     const { transaction, store } = this.store("conversations", "readwrite");
