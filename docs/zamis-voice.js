@@ -3,7 +3,7 @@ const TRANSFORMERS_URL = "https://cdn.jsdelivr.net/npm/@huggingface/transformers
 const WAKE_MODEL = "onnx-community/whisper-tiny";
 const WAKE_PATTERN = /(ز[می]ی?س(?:ت)?|zamis|zames)/iu;
 const START_PATTERN = /(ضبط(?:ش)? کن|شروع کن|گوش کن|record it|start recording|start listening|listen now)/iu;
-const SPEECH_LEVEL = 0.012;
+const SPEECH_LEVEL = 0.006;
 const SILENCE_MS = 900;
 const MIN_SPEECH_MS = 350;
 const MAX_SPEECH_MS = 15000;
@@ -100,9 +100,14 @@ export function pcmToWav(samples, sampleRate = 16000) {
 
 export function createVoiceController(options = {}) {
   const root = globalThis;
+  const Recognition = root.SpeechRecognition || root.webkitSpeechRecognition;
   const synthesis = root.speechSynthesis;
-  const supported = Boolean(root.navigator?.mediaDevices?.getUserMedia && (root.AudioContext || root.webkitAudioContext));
+  const rawAudioSupported = Boolean(root.navigator?.mediaDevices?.getUserMedia && (root.AudioContext || root.webkitAudioContext));
+  const supported = Boolean(Recognition || rawAudioSupported);
   let enabled = false;
+  let nativeMode = false;
+  let nativeRecognition = null;
+  let nativeRestartTimer = null;
   let stream = null;
   let context = null;
   let processor = null;
@@ -121,6 +126,77 @@ export function createVoiceController(options = {}) {
   function setState(state, message = "") {
     options.onStateChange?.(state, message);
     if (message) options.onStatus?.(message);
+  }
+
+  function dispatchNativeTranscript(transcript, final = true) {
+    const text = String(transcript ?? "").trim();
+    if (!text || ignoreInput) return;
+    options.onTranscript?.(text, { source: "device", final });
+    if (!final) return;
+
+    const armed = armedUntil > Date.now();
+    const intent = parseVoiceIntent(text, armed);
+    if (intent.type === "wake") {
+      armedUntil = Date.now() + COMMAND_WINDOW_MS;
+      setState("armed", "Zamis heard you • Say your request");
+      options.onWake?.(detectSpeechLanguage(text));
+    } else if (intent.type === "command") {
+      armedUntil = 0;
+      options.onCommand?.(intent.command, detectSpeechLanguage(intent.command), "device");
+    } else {
+      setState("ready", "Listening • Say “Zamis” or «زمیس»");
+    }
+  }
+
+  function scheduleNativeRestart() {
+    clearTimeout(nativeRestartTimer);
+    if (!enabled || !nativeMode || ignoreInput) return;
+    nativeRestartTimer = root.setTimeout(() => {
+      if (!enabled || !nativeMode || ignoreInput) return;
+      try {
+        nativeRecognition?.start();
+      } catch (error) {
+        console.warn("Could not restart device speech recognition", error);
+      }
+    }, 250);
+  }
+
+  function startNativeStandby() {
+    if (!Recognition) return false;
+    nativeMode = true;
+    nativeRecognition?.abort?.();
+    nativeRecognition = new Recognition();
+    nativeRecognition.lang = language === "auto" ? "fa-IR" : language;
+    nativeRecognition.continuous = true;
+    nativeRecognition.interimResults = true;
+    nativeRecognition.maxAlternatives = 3;
+    nativeRecognition.onstart = () => setState("ready", "Listening • Say “Zamis” or «زمیس»");
+    nativeRecognition.onspeechstart = () => setState(armedUntil > Date.now() ? "hearing-command" : "hearing", "I can hear you…");
+    nativeRecognition.onresult = (event) => {
+      let interim = "";
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        const transcript = result[0]?.transcript ?? "";
+        if (result.isFinal) dispatchNativeTranscript(transcript, true);
+        else interim += transcript;
+      }
+      if (interim.trim()) dispatchNativeTranscript(interim, false);
+    };
+    nativeRecognition.onerror = (event) => {
+      const code = event.error || "unknown";
+      if (code === "aborted" || code === "no-speech") return;
+      if (code === "not-allowed" || code === "service-not-allowed") {
+        enabled = false;
+        setState("error", "Microphone access is blocked. Allow Microphone for Zamis in iPad Settings.");
+        options.onError?.(new Error("Microphone access is blocked in iPad Settings."));
+        return;
+      }
+      console.warn(`Device speech recognition error: ${code}`);
+      setState("ready", `Voice service paused (${code}) • Retrying…`);
+    };
+    nativeRecognition.onend = scheduleNativeRestart;
+    nativeRecognition.start();
+    return true;
   }
 
   async function getWakeTranscriber() {
@@ -266,6 +342,20 @@ export function createVoiceController(options = {}) {
     if (!supported) throw new Error("Voice standby is unavailable in this browser.");
     language = selectedLanguage;
     setState("requesting", "Allow microphone access to activate Zamis.");
+    enabled = true;
+    if (Recognition) {
+      try {
+        startNativeStandby();
+        return true;
+      } catch (error) {
+        console.warn("Device speech recognition could not start; using local fallback", error);
+        nativeMode = false;
+      }
+    }
+    if (!rawAudioSupported) {
+      enabled = false;
+      throw new Error("Voice input is unavailable in this browser.");
+    }
     stream = await root.navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     const AudioContext = root.AudioContext || root.webkitAudioContext;
     context = new AudioContext();
@@ -278,7 +368,6 @@ export function createVoiceController(options = {}) {
     source.connect(processor);
     processor.connect(silentGain);
     silentGain.connect(context.destination);
-    enabled = true;
     await getWakeTranscriber();
     setState("ready", "Ready • Say “Zamis” or “زمیس”");
     return true;
@@ -286,6 +375,11 @@ export function createVoiceController(options = {}) {
 
   async function disableAlwaysOn() {
     enabled = false;
+    nativeMode = false;
+    clearTimeout(nativeRestartTimer);
+    nativeRestartTimer = null;
+    nativeRecognition?.abort?.();
+    nativeRecognition = null;
     armedUntil = 0;
     queue = [];
     speechChunks = [];
@@ -312,8 +406,15 @@ export function createVoiceController(options = {}) {
     utterance.lang = speechLanguage;
     utterance.rate = speechLanguage === "fa-IR" ? 0.92 : 0.96;
     utterance.voice = chooseBestVoice(synthesis.getVoices(), speechLanguage);
-    utterance.onstart = () => { ignoreInput = true; speechChunks = []; };
-    const resume = () => root.setTimeout(() => { ignoreInput = false; }, 300);
+    utterance.onstart = () => {
+      ignoreInput = true;
+      speechChunks = [];
+      nativeRecognition?.abort?.();
+    };
+    const resume = () => root.setTimeout(() => {
+      ignoreInput = false;
+      if (enabled && nativeMode) scheduleNativeRestart();
+    }, 300);
     utterance.onend = resume;
     utterance.onerror = resume;
     synthesis.cancel();

@@ -26,4 +26,26 @@ assert.equal(wav.size, 32_044);
 const wavBytes = new Uint8Array(await wav.arrayBuffer());
 assert.equal(new TextDecoder().decode(wavBytes.subarray(0, 4)), "RIFF");
 
-console.log(`voice smoke: ${cases.length} intents, resampling, and WAV encoding passed`);
+class FakeRecognition {
+  static latest;
+  constructor() { FakeRecognition.latest = this; }
+  start() { this.onstart?.(); }
+  abort() {}
+  emit(text, isFinal = true) {
+    this.onresult?.({ resultIndex: 0, results: Object.assign([[{ transcript: text }]], { 0: Object.assign([{ transcript: text }], { isFinal }), length: 1 }) });
+  }
+}
+
+globalThis.webkitSpeechRecognition = FakeRecognition;
+const voiceEvents = [];
+const controller = voice.createVoiceController({
+  onWake: () => voiceEvents.push("wake"),
+  onCommand: (command) => voiceEvents.push(`command:${command}`),
+});
+await controller.enableAlwaysOn("fa-IR");
+FakeRecognition.latest.emit("زمیس");
+FakeRecognition.latest.emit("ایران کجاست");
+assert.deepEqual(voiceEvents, ["wake", "command:ایران کجاست"]);
+await controller.disableAlwaysOn();
+
+console.log(`voice smoke: ${cases.length} intents, device recognition, resampling, and WAV encoding passed`);

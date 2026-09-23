@@ -3,9 +3,9 @@ import {
   deleteModelAllInfoInCache,
   hasModelInCache,
 } from "https://esm.run/@mlc-ai/web-llm@0.2.85";
-import { ZamisMemory } from "./zamis-memory.js?v=14";
-import { createVoiceController, detectSpeechLanguage } from "./zamis-voice.js?v=14";
-import { readAttachment, releaseAttachment } from "./zamis-files.js?v=14";
+import { ZamisMemory } from "./zamis-memory.js?v=15";
+import { createVoiceController, detectSpeechLanguage } from "./zamis-voice.js?v=15";
+import { readAttachment, releaseAttachment } from "./zamis-files.js?v=15";
 import {
   SYSTEM_PROMPT,
   cleanModelResponse,
@@ -17,7 +17,7 @@ import {
   isPersonalRecallQuery,
   shouldSearchWeb,
   summarizeExtract,
-} from "./zamis-brain.js?v=14";
+} from "./zamis-brain.js?v=15";
 
 const MODEL_ID = "Qwen2.5-3B-Instruct-q4f16_1-MLC";
 
@@ -88,7 +88,8 @@ const voice = createVoiceController({
     voice.speak(recognitionLanguage === "fa-IR" ? "بله امین" : "Yes, Amin?");
   },
   onTranscript: (transcript, detail) => {
-    if (detail?.source === "cloud") elements.prompt.value = transcript;
+    elements.prompt.value = transcript;
+    if (!detail?.final) elements.status.textContent = `شنیدم: ${transcript}`;
   },
   onCommand: (transcript, recognitionLanguage) => {
     elements.prompt.value = transcript;
@@ -484,6 +485,7 @@ async function activateVoice() {
     await voice.enableAlwaysOn(elements.speechLanguage.value);
   } catch (error) {
     console.error("Could not activate voice standby", error);
+    elements.status.textContent = error?.message || "Voice standby could not start.";
     elements.voiceSetup.hidden = false;
   } finally {
     elements.enableVoice.disabled = false;
