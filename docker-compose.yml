@@ -1,0 +1,11 @@
+services:
+  minigpt:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - minigpt-memory:/app/runtime
+    restart: unless-stopped
+
+volumes:
+  minigpt-memory:

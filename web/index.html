@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#101828">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Mini-GPT">
+  <title>Mini‑GPT</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="orb" aria-hidden="true"></div>
+      <div><h1>Mini‑GPT</h1><p id="status">Ready • Local memory</p></div>
+      <label class="switch"><input id="web-toggle" type="checkbox" checked><span>Web</span></label>
+    </header>
+    <section id="messages" class="messages" aria-live="polite">
+      <article class="message assistant" dir="auto">سلام امین — I'm Nava. می‌توانی فارسی یا English با من صحبت کنی.</article>
+    </section>
+    <form id="chat-form">
+      <textarea id="prompt" rows="1" dir="auto" placeholder="Type a message…" required></textarea>
+      <button type="submit" aria-label="Send message">↑</button>
+    </form>
+  </main>
+  <script src="/static/app.js?v=3" defer></script>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#090d1b">
+  <meta name="description" content="Zamis Local AI Lab — an archived bilingual, local-first voice assistant engineering prototype by Amin Bakhtiari.">
+  <title>Zamis Local AI Lab</title>
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css?v=17">
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+  <header class="nav wrap">
+    <a class="brand" href="#top" aria-label="Zamis home">
+      <img src="./icon.svg" alt="">
+      <span>Zamis Local AI Lab</span>
+    </a>
+    <a class="nav-link" href="https://github.com/aminbakhtiari777/mini-gpt/tree/mini-gpt-agent-v1">Source on GitHub ↗</a>
+  </header>
+
+  <main id="top">
+    <section class="hero wrap">
+      <div class="status"><span></span> Archived engineering prototype</div>
+      <p class="eyebrow">LOCAL-FIRST AI • PERSIAN + ENGLISH • VOICE</p>
+      <h1>A resource-aware assistant built to discover the limits of on-device AI.</h1>
+      <p class="lead">Zamis combines a Python agent, persistent memory, bounded web retrieval, FastAPI, Docker, and an experimental iPad WebGPU client. The product is archived; the engineering remains documented and reproducible.</p>
+      <div class="actions">
+        <a class="button primary" href="https://github.com/aminbakhtiari777/mini-gpt/tree/mini-gpt-agent-v1">Explore repository</a>
+        <a class="button secondary" href="https://github.com/aminbakhtiari777/mini-gpt/blob/mini-gpt-agent-v1/PROJECT_REPORT.md">Read engineering report</a>
+      </div>
+      <div class="metrics">
+        <article><strong>2</strong><span>runtime architectures</span></article>
+        <article><strong>23</strong><span>Python behavior tests</span></article>
+        <article><strong>2</strong><span>supported languages</span></article>
+        <article><strong>3B</strong><span>iPad model experiment</span></article>
+      </div>
+    </section>
+
+    <section class="wrap section">
+      <div class="section-heading">
+        <p class="eyebrow">THE SYSTEM</p>
+        <h2>One research goal, two technical paths</h2>
+      </div>
+      <div class="paths">
+        <article class="card featured">
+          <span class="number">01</span>
+          <h3>Python agent backend</h3>
+          <p>The more complete path: request classification, SQLite memory, confidence routing, cached knowledge, bounded retrieval, optional Ollama, FastAPI, CLI, and Docker.</p>
+          <ul><li>Evidence-aware answers</li><li>Explicit memory controls</li><li>Offline and network fallbacks</li></ul>
+        </article>
+        <article class="card">
+          <span class="number">02</span>
+          <h3>iPad WebGPU study</h3>
+          <p>An installable PWA used to evaluate quantized in-browser inference, bilingual voice input, local IndexedDB memory, and browser resource limits.</p>
+          <ul><li>On-device model cache</li><li>Persian/English interface</li><li>Voice and file prototypes</li></ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="wrap section split">
+        <div>
+          <p class="eyebrow">ENGINEERING OUTCOME</p>
+          <h2>The constraint became the result.</h2>
+          <p class="copy">The browser model ran successfully, but a model small enough for reliable iPad execution was not strong enough for production-quality understanding. Larger models increased memory pressure and instability. Zamis documents that tradeoff instead of hiding it.</p>
+        </div>
+        <div class="result-list">
+          <div><span>✓</span><p><strong>Validated</strong> local inference, memory, retrieval, PWA installation, and voice utilities.</p></div>
+          <div><span>✓</span><p><strong>Measured</strong> the gap between model fit and model intelligence.</p></div>
+          <div><span>✓</span><p><strong>Defined</strong> the secure hybrid architecture required for a future version.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap section">
+      <div class="section-heading">
+        <p class="eyebrow">RESOURCE PROFILES</p>
+        <h2>What it takes to run</h2>
+      </div>
+      <div class="resource-grid">
+        <article class="resource"><span>Lightweight</span><h3>API and routing</h3><p>Python 3.11<br>1–2 GB RAM<br>Under 1 GB disk</p></article>
+        <article class="resource"><span>Local desktop</span><h3>Full prototype</h3><p>4–8 GB RAM<br>About 3 GB disk<br>8–16 GB with Ollama</p></article>
+        <article class="resource warning"><span>iPad study</span><h3>WebGPU model</h3><p>~2.5 GB download<br>Several GB runtime memory<br>Safari memory pressure</p></article>
+        <article class="resource"><span>Production</span><h3>Hybrid assistant</h3><p>Secure model backend<br>Authentication and budget<br>Monitoring and evaluation</p></article>
+      </div>
+    </section>
+
+    <section class="wrap section tests">
+      <div>
+        <p class="eyebrow">VERIFICATION</p>
+        <h2>Tested as an engineering system</h2>
+        <p class="copy">The repository includes behavior tests for memory, request routing, retrieval, fallbacks, Persian conversation handling, Ollama context, and browser voice utilities.</p>
+      </div>
+      <pre><code>$ python scripts/run_test_suite.py
+23/23 Python behavior tests passed
+
+$ node tests/voice-smoke.mjs
+voice smoke passed</code></pre>
+    </section>
+
+    <section class="wrap final-card">
+      <p class="eyebrow">PORTFOLIO CASE STUDY</p>
+      <h2>Built, tested, evaluated, and archived honestly.</h2>
+      <p>The complete source and technical report remain available for code review or future continuation when sufficient compute and backend resources are available.</p>
+      <a class="button primary" href="https://github.com/aminbakhtiari777/mini-gpt/tree/mini-gpt-agent-v1">View the code</a>
+    </section>
+  </main>
+
+  <footer class="wrap">
+    <span>Designed and engineered by Amin Bakhtiari</span>
+    <span>Zamis Local AI Lab • 2026</span>
+  </footer>
+</body>
+</html>

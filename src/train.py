@@ -1,23 +1,21 @@
 import tensorflow as tf
 
-from config import (
-    VOCAB_SIZE,
-    MAX_LENGTH,
-    EMBED_DIM,
-    NUM_HEADS,
-    FF_DIM,
-    NUM_LAYERS,
-    BATCH_SIZE,
-    EPOCHS,
-    LEARNING_RATE,
-    TRAIN_PATH,
-    TOKENIZER_PATH,
-    MODEL_PATH,
-)
-
-from tokenizer import MiniGPTTokenizer
-from dataset import load_text, create_dataset
-from model import build_model
+try:
+    from .config import (
+        VOCAB_SIZE, MAX_LENGTH, EMBED_DIM, NUM_HEADS, FF_DIM, NUM_LAYERS,
+        BATCH_SIZE, EPOCHS, LEARNING_RATE, TRAIN_PATH, TOKENIZER_PATH, MODEL_PATH,
+    )
+    from .tokenizer import MiniGPTTokenizer
+    from .dataset import load_text, create_dataset
+    from .model import build_model
+except ImportError:
+    from config import (
+        VOCAB_SIZE, MAX_LENGTH, EMBED_DIM, NUM_HEADS, FF_DIM, NUM_LAYERS,
+        BATCH_SIZE, EPOCHS, LEARNING_RATE, TRAIN_PATH, TOKENIZER_PATH, MODEL_PATH,
+    )
+    from tokenizer import MiniGPTTokenizer
+    from dataset import load_text, create_dataset
+    from model import build_model
 
 
 def main():

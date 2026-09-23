@@ -1,7 +1,11 @@
 import numpy as np
 
-from config import MAX_LENGTH
-from tokenizer import MiniGPTTokenizer
+try:
+    from .config import MAX_LENGTH
+    from .tokenizer import MiniGPTTokenizer
+except ImportError:
+    from config import MAX_LENGTH
+    from tokenizer import MiniGPTTokenizer
 
 
 def load_text(path):

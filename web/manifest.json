@@ -1,0 +1,9 @@
+{
+  "name": "Mini-GPT Agent",
+  "short_name": "Mini-GPT",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07111f",
+  "theme_color": "#101828",
+  "description": "A local-first personal AI assistant with memory and iterative web research"
+}
