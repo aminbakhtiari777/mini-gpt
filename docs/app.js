@@ -1,4 +1,8 @@
-import { CreateMLCEngine, hasModelInCache } from "https://esm.run/@mlc-ai/web-llm@0.2.85";
+import {
+  CreateMLCEngine,
+  deleteModelAllInfoInCache,
+  hasModelInCache,
+} from "https://esm.run/@mlc-ai/web-llm@0.2.85";
 import { ZamisMemory } from "./zamis-memory.js?v=3";
 import { SYSTEM_PROMPT, cleanModelResponse, directReply, shouldSearchWeb } from "./zamis-brain.js?v=6";
 
@@ -99,8 +103,28 @@ async function loadModel() {
   } catch (error) {
     console.error(error);
     elements.load.disabled = false;
+    const errorMessage = String(error?.message ?? error);
+    const corruptCache = /tensor-cache|shard size|record range|cache.*(?:corrupt|invalid)/iu.test(errorMessage);
+
+    if (corruptCache) {
+      elements.status.textContent = "Repairing incomplete model cache…";
+      elements.progressLabel.textContent = "The previous model download was incomplete. Removing only the damaged 3B cache…";
+      try {
+        await deleteModelAllInfoInCache(MODEL_ID);
+        elements.status.textContent = "Model cache repaired";
+        elements.load.textContent = "Download clean AI model • ~2.5 GB";
+        elements.progress.style.width = "0%";
+        elements.progressLabel.textContent = "Damaged files were removed. Tap the button to download the 3B model again.";
+      } catch (repairError) {
+        console.error("Model cache repair failed", repairError);
+        elements.status.textContent = "Model cache repair failed";
+        elements.progressLabel.textContent = "Could not repair the model cache automatically. Reload the app and try again.";
+      }
+      return;
+    }
+
     elements.status.textContent = "Model load failed";
-    elements.progressLabel.textContent = `Could not load the model: ${error.message}`;
+    elements.progressLabel.textContent = `Could not load the model: ${errorMessage}`;
   }
 }
 
